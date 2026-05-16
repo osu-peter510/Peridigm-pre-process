@@ -1,0 +1,22 @@
+name: peridigm-preprocess
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.13
+  - numpy
+  - jupyter
+  - pip
+  - pip:
+      - setuptools
+
+# NOTE: Coreform Cubit 2025.12 is a required external dependency.
+# It is NOT available via pip or conda. Install it separately from:
+#   https://coreform.com/products/coreform-cubit/
+#
+# After installing, set the CUBIT_PATH variable in each entry-point script:
+#   kw-board-impact/block_generation.py
+#   cloth-fall-generation/cloth_scene_generator.py
+#   dynamic-impact-generation/generate_scenes.py  (and geometry_builder.py)
+#
+# Default path: E:\Program Files\Coreform Cubit 2025.12\bin

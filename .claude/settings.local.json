@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($nb = Get-Content \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\files\\\\generate_scenes.ipynb\" -Raw | ConvertFrom-Json; $cells = $nb.cells; $cells[12].source -join ''; Write-Host \"`n---CELL14---`n\"; $cells[14].source -join '')",
+      "PowerShell(Move-Item \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\files\\\\generate_scenes.ipynb\" \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\generate_scenes.ipynb\")",
+      "PowerShell(Move-Item \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\files\\\\files\\\\mug.cub5\" \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\geometry\\\\mug.cub5\")",
+      "PowerShell(Move-Item \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\files\\\\files\\\\mug.g\" \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\geometry\\\\mug.g\")",
+      "PowerShell(Move-Item \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\files\\\\fragmentation_dataset\" \"F:\\\\Peridigm-pre-process-claude\\\\dynamic-impact-generation\\\\fragmentation_dataset\")"
+    ]
+  }
+}

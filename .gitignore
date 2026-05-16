@@ -1,0 +1,25 @@
+# Generated output (large mesh/sim files)
+output/
+
+# Cubit working files
+*.cub5
+*.jou
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
