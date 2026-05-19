@@ -18,6 +18,17 @@ import math
 from pathlib import Path
 
 
+def _nice_freq(raw: int) -> int:
+    """Round *down* to 1 significant figure for clean output numbering.
+
+    Examples: 1429 → 1000, 5432 → 5000, 327 → 300, 14 → 10, 7 → 7.
+    """
+    if raw < 10:
+        return max(1, raw)
+    p = 10 ** int(math.log10(raw))
+    return max(1, (raw // p) * p)
+
+
 # ---------------------------------------------------------------------------
 # Freefall scenes
 # ---------------------------------------------------------------------------
@@ -54,7 +65,7 @@ def generate_vase_drop_peridigm_xml(
     final_time = t_fall * 1.5
 
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -221,7 +232,7 @@ def generate_mug_drop_peridigm_xml(
     final_time = 2.0
     fps = 2000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -400,7 +411,7 @@ def generate_bullet_vase_peridigm_xml(
     final_time = 0.05
     fps = 2000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -634,7 +645,7 @@ def generate_bullet_mug_peridigm_xml(
     final_time = 0.05
     fps = 2000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -859,7 +870,7 @@ def generate_bullet_vase_nf_peridigm_xml(
     dt = mesh_size_m / c_p * 0.7
     final_time = 0.005
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -1018,7 +1029,7 @@ def generate_bullet_mug_nf_peridigm_xml(
     dt = mesh_size_m / c_p * 0.7
     final_time = 0.05
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -1186,14 +1197,14 @@ def generate_ball_plate_peridigm_xml(
     dt = mesh_size_m / c_p * 0.7
     final_time = 0.005
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (10000.0 * dt))))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius  = 2.0 * mesh_size_m
 
-    vx = -info["dx"] * info["ball_speed"]
-    vy = -info["dy"] * info["ball_speed"]
-    vz = -info["dz"] * info["ball_speed"]
+    vx = info["dx"] * info["ball_speed"]
+    vy = info["dy"] * info["ball_speed"]
+    vz = info["dz"] * info["ball_speed"]
 
     xml = f'''<?xml version="1.0" encoding="UTF-8"?>
 <ParameterList name="Peridigm">
@@ -1301,6 +1312,7 @@ def generate_ball_plate_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 </ParameterList>

@@ -709,10 +709,10 @@ def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
     plate_thickness_mm = rng.uniform(2, 5)
 
     # --- Ball parameters (fixed size) ---
-    ball_radius_mm = 5.0
+    ball_radius_mm = 15.0
 
     # Mesh size: driven by ball diameter (need ≥3 elements across ball diameter)
-    mesh_size = ball_radius_mm * 2 / 3
+    mesh_size = ball_radius_mm / 3
 
     # --- Build geometry ---
     plate_vol = make_plate(

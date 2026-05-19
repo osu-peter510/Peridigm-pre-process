@@ -187,7 +187,7 @@ def make_plate(
 
 
 def make_ball(
-    radius_mm: float = 5.0,
+    radius_mm: float = 10.0,
     mesh_size_mm: float = 4.0,
 ) -> int:
     """Create a sphere centred at the origin.
