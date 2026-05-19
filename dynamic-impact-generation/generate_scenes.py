@@ -41,7 +41,10 @@ CUBIT_PATH = r"E:\Program Files\Coreform Cubit 2025.12\bin"
 sys.path.append(CUBIT_PATH)
 import cubit
 
-from geometry_builder import make_vase_parametric, make_mug_parametric, make_bullet, make_floor
+from geometry_builder import (
+    make_vase_parametric, make_mug_parametric, make_bullet, make_floor,
+    make_plate, make_ball,
+)
 from peridigm_xml import (
     generate_vase_drop_peridigm_xml,
     generate_mug_drop_peridigm_xml,
@@ -49,6 +52,7 @@ from peridigm_xml import (
     generate_bullet_mug_peridigm_xml,
     generate_bullet_vase_nf_peridigm_xml,
     generate_bullet_mug_nf_peridigm_xml,
+    generate_ball_plate_peridigm_xml,
 )
 
 
@@ -687,6 +691,111 @@ def build_bullet_mug_nf_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
     }
 
 
+def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
+    """Ball impacts a circular plate from a random direction.
+
+    Ball: fixed radius 5 mm (steel), no damage.
+    Plate: random radius 50-150 mm, random thickness 2-5 mm (ceramic, with damage).
+    Speed: 50-300 m/s.  Angle from vertical: 0-30 deg.
+
+    Block 1 / Nodeset 1: Plate
+    Block 2 / Nodeset 2: Ball
+    """
+    rng = random.Random(seed)
+    cubit.cmd("reset")
+
+    # --- Plate parameters (randomised) ---
+    plate_radius_mm    = rng.uniform(50, 150)
+    plate_thickness_mm = rng.uniform(2, 5)
+
+    # --- Ball parameters (fixed size) ---
+    ball_radius_mm = 5.0
+
+    # Mesh size: driven by ball diameter (need ≥3 elements across ball diameter)
+    mesh_size = ball_radius_mm * 2 / 3
+
+    # --- Build geometry ---
+    plate_vol = make_plate(
+        radius_mm=plate_radius_mm,
+        thickness_mm=plate_thickness_mm,
+        mesh_size_mm=mesh_size,
+    )
+    ball_vol = make_ball(radius_mm=ball_radius_mm, mesh_size_mm=mesh_size)
+
+    # Adaptive mesh refinement
+    relaxation = 1.0
+    for attempt in range(10):
+        n = total_elements([plate_vol, ball_vol])
+        if n <= max_nodes:
+            break
+        relaxation *= 1.1
+        mesh_size_new = mesh_size * relaxation
+        cubit.init(['cubit', '-nojournal'])
+        cubit.cmd("reset")
+        plate_vol = make_plate(
+            radius_mm=plate_radius_mm,
+            thickness_mm=plate_thickness_mm,
+            mesh_size_mm=mesh_size_new,
+        )
+        ball_vol = make_ball(radius_mm=ball_radius_mm, mesh_size_mm=mesh_size_new)
+
+    # --- Position ball above plate centre ---
+    # Impact angle: elevation from vertical (0 = straight down, 30 = oblique)
+    elevation_deg = rng.uniform(0, 30)
+    azimuth_deg   = rng.uniform(0, 360)
+    ball_speed    = rng.uniform(50, 300)
+
+    elev_rad = math.radians(elevation_deg)
+    azim_rad = math.radians(azimuth_deg)
+
+    # Direction vector pointing toward the plate (downward = -z dominant)
+    dx =  math.sin(elev_rad) * math.cos(azim_rad)
+    dy =  math.sin(elev_rad) * math.sin(azim_rad)
+    dz = -math.cos(elev_rad)  # negative z = downward
+
+    # Random impact offset on plate surface (within 60% of plate radius)
+    impact_offset = rng.uniform(0, plate_radius_mm * 0.6)
+    impact_angle  = rng.uniform(0, 360)
+    impact_x = impact_offset * math.cos(math.radians(impact_angle))
+    impact_y = impact_offset * math.sin(math.radians(impact_angle))
+
+    # Place ball 80 mm above plate along the approach direction
+    standoff = 80.0
+    cubit.cmd(f"move volume {ball_vol} "
+              f"x {impact_x - dx * standoff} "
+              f"y {impact_y - dy * standoff} "
+              f"z {-dz * standoff}")
+
+    # Assign blocks and nodesets
+    cubit.cmd(f"block 1 volume {plate_vol}")
+    cubit.cmd("block 1 name 'block_1'")
+    cubit.cmd(f"nodeset 1 volume {plate_vol}")
+    cubit.cmd("nodeset 1 name 'nodelist_1'")
+
+    cubit.cmd(f"block 2 volume {ball_vol}")
+    cubit.cmd("block 2 name 'block_2'")
+    cubit.cmd(f"nodeset 2 volume {ball_vol}")
+    cubit.cmd("nodeset 2 name 'nodelist_2'")
+
+    cubit.cmd("volume all scale 0.001")
+    cubit.cmd("delete free vertex all")
+    cubit.cmd("delete free curve all")
+    cubit.cmd("delete free surface all")
+
+    return {
+        "plate_vol": plate_vol, "ball_vol": ball_vol,
+        "plate_radius_mm": plate_radius_mm,
+        "plate_thickness_mm": plate_thickness_mm,
+        "ball_radius_mm": ball_radius_mm,
+        "ball_speed": ball_speed,
+        "elevation_deg": elevation_deg,
+        "azimuth_deg": azimuth_deg,
+        "dx": dx, "dy": dy, "dz": dz,
+        "mesh_size": mesh_size * relaxation,
+        "seed": seed,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Scenario registry  (name → build_fn, xml_fn)
 # ---------------------------------------------------------------------------
@@ -698,6 +807,7 @@ SCENARIOS = {
     "bullet_mug":     (build_bullet_mug_scene,     generate_bullet_mug_peridigm_xml),
     "bullet_vase_nf": (build_bullet_vase_nf_scene, generate_bullet_vase_nf_peridigm_xml),
     "bullet_mug_nf":  (build_bullet_mug_nf_scene,  generate_bullet_mug_nf_peridigm_xml),
+    "ball_plate":     (build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
 }
 
 
@@ -779,6 +889,7 @@ scenarios:
   bullet_mug      — 400 m/s bullet impacts a mug  sitting on a floor
   bullet_vase_nf  — 400 m/s bullet impacts a floating vase (no floor)
   bullet_mug_nf   — 400 m/s bullet impacts a floating mug  (no floor)
+  ball_plate      — steel ball impacts a ceramic plate at 50-300 m/s
 
 examples:
   python generate_scenes.py freefall_vase  50

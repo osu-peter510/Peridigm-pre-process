@@ -77,6 +77,7 @@ from peridigm_xml import (
     generate_bullet_mug_peridigm_xml,
     generate_bullet_vase_nf_peridigm_xml,
     generate_bullet_mug_nf_peridigm_xml,
+    generate_ball_plate_peridigm_xml,
 )
 _di = _load_module(
     "di_generate_scenes",
@@ -106,6 +107,7 @@ _DI_SCENARIOS = {
     "bullet_mug":     (_di.build_bullet_mug_scene,     generate_bullet_mug_peridigm_xml),
     "bullet_vase_nf": (_di.build_bullet_vase_nf_scene, generate_bullet_vase_nf_peridigm_xml),
     "bullet_mug_nf":  (_di.build_bullet_mug_nf_scene,  generate_bullet_mug_nf_peridigm_xml),
+    "ball_plate":     (_di.build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
 }
 
 
@@ -247,6 +249,7 @@ ALL_SCENARIOS = {
     "bullet_mug":     run_dynamic_impact,
     "bullet_vase_nf": run_dynamic_impact,
     "bullet_mug_nf":  run_dynamic_impact,
+    "ball_plate":     run_dynamic_impact,
     "kw_fracture":    run_kw_fracture,
     "cloth_fall":     run_cloth_fall,
 }
@@ -271,6 +274,7 @@ scenarios:
   bullet_mug      — 400 m/s bullet impacts a mug  sitting on a floor
   bullet_vase_nf  — 400 m/s bullet impacts a floating vase (no floor)
   bullet_mug_nf   — 400 m/s bullet impacts a floating mug  (no floor)
+  ball_plate      — steel ball impacts a ceramic plate at 50-300 m/s
   kw_fracture     — Kalthoff-Winkler notched board + cylinder (deterministic)
   cloth_fall      — randomised cloth falling over 3 bricks + 1 sphere
 
@@ -284,6 +288,7 @@ examples:
   python generate.py bullet_mug     20 --base-seed 100 --max-nodes 30000
   python generate.py bullet_vase_nf 30
   python generate.py bullet_mug_nf  30
+  python generate.py ball_plate     50 --max-nodes 30000
   python generate.py kw_fracture     1
   python generate.py cloth_fall    100 --max-nodes 20000
 """,

@@ -166,6 +166,44 @@ def make_bullet(
     return vol_id
 
 
+def make_plate(
+    radius_mm: float = 100.0,
+    thickness_mm: float = 3.0,
+    mesh_size_mm: float = 4.0,
+) -> int:
+    """Create a circular plate (thin cylinder) centred at origin, top face at z=0.
+
+    Returns the Cubit volume ID of the meshed plate.
+    """
+    vols_before = set(cubit.get_entities("volume"))
+    cubit.cmd(f"create cylinder height {thickness_mm} radius {radius_mm}")
+    vol_id = max(set(cubit.get_entities("volume")) - vols_before)
+    cubit.cmd(f"move volume {vol_id} z {-thickness_mm / 2}")
+
+    cubit.cmd(f"volume {vol_id} size {mesh_size_mm}")
+    cubit.cmd(f"volume {vol_id} scheme tetmesh")
+    cubit.cmd(f"mesh volume {vol_id}")
+    return vol_id
+
+
+def make_ball(
+    radius_mm: float = 5.0,
+    mesh_size_mm: float = 4.0,
+) -> int:
+    """Create a sphere centred at the origin.
+
+    Returns the Cubit volume ID of the meshed ball.
+    """
+    vols_before = set(cubit.get_entities("volume"))
+    cubit.cmd(f"create sphere radius {radius_mm}")
+    vol_id = max(set(cubit.get_entities("volume")) - vols_before)
+
+    cubit.cmd(f"volume {vol_id} size {mesh_size_mm}")
+    cubit.cmd(f"volume {vol_id} scheme tetmesh")
+    cubit.cmd(f"mesh volume {vol_id}")
+    return vol_id
+
+
 def make_floor(
     size_x_mm: float = 150.0,
     size_y_mm: float = 150.0,

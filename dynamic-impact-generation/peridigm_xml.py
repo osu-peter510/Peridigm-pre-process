@@ -1150,3 +1150,161 @@ def generate_bullet_mug_nf_peridigm_xml(
     if output_xml is not None:
         Path(output_xml).write_text(xml, encoding="utf-8")
     return xml
+
+
+# ---------------------------------------------------------------------------
+# Ball-plate impact (no floor)
+# ---------------------------------------------------------------------------
+
+def generate_ball_plate_peridigm_xml(
+    mesh_file: str,
+    info: dict,
+    output_xml: str | None = None,
+    *,
+    plate_block: str = "block_1",
+    ball_block: str = "block_2",
+    plate_nodeset: str = "nodelist_1",
+    ball_nodeset: str = "nodelist_2",
+    gravity: float = 9.81,
+    verbose: bool = False,
+) -> str:
+    """Generate Peridigm XML for ball-plate impact (no floor).
+
+    Block 1 / Nodeset 1: Plate (brittle ceramic, with damage)
+    Block 2 / Nodeset 2: Ball  (steel, no damage)
+    """
+    mesh_size_m = info["mesh_size"] * 0.001
+    horizon = 3.015 * mesh_size_m
+
+    plate_density, plate_bulk, plate_shear = 2200.0, 14.90e9, 8.94e9
+    ball_density,  ball_bulk,  ball_shear  = 7700.0, 160.0e9, 78.3e9
+
+    c_p = max(
+        math.sqrt((plate_bulk + 4 * plate_shear / 3) / plate_density),
+        math.sqrt((ball_bulk  + 4 * ball_shear  / 3) / ball_density),
+    )
+    dt = mesh_size_m / c_p * 0.7
+    final_time = 0.005
+    total_steps = int(final_time / dt)
+    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+
+    contact_radius = 1.1 * mesh_size_m
+    search_radius  = 2.0 * mesh_size_m
+
+    vx = -info["dx"] * info["ball_speed"]
+    vy = -info["dy"] * info["ball_speed"]
+    vz = -info["dz"] * info["ball_speed"]
+
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<ParameterList name="Peridigm">
+  <ParameterList name="Discretization">
+    <Parameter name="Type" type="string" value="Exodus"/>
+    <Parameter name="Input Mesh File" type="string" value="{mesh_file}"/>
+  </ParameterList>
+  <ParameterList name="Materials">
+    <ParameterList name="Plate Material">
+      <Parameter name="Material Model" type="string" value="Elastic"/>
+      <Parameter name="Density" type="double" value="{plate_density}"/>
+      <Parameter name="Bulk Modulus" type="double" value="{plate_bulk:.6e}"/>
+      <Parameter name="Shear Modulus" type="double" value="{plate_shear:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Material">
+      <Parameter name="Material Model" type="string" value="Elastic"/>
+      <Parameter name="Density" type="double" value="{ball_density}"/>
+      <Parameter name="Bulk Modulus" type="double" value="{ball_bulk:.6e}"/>
+      <Parameter name="Shear Modulus" type="double" value="{ball_shear:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Damage Models">
+    <ParameterList name="Plate Damage">
+      <Parameter name="Damage Model" type="string" value="Critical Stretch"/>
+      <Parameter name="Critical Stretch" type="double" value="0.0005"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Blocks">
+    <ParameterList name="Plate Block">
+      <Parameter name="Block Names" type="string" value="{plate_block}"/>
+      <Parameter name="Material" type="string" value="Plate Material"/>
+      <Parameter name="Damage Model" type="string" value="Plate Damage"/>
+      <Parameter name="Horizon" type="double" value="{horizon:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Block">
+      <Parameter name="Block Names" type="string" value="{ball_block}"/>
+      <Parameter name="Material" type="string" value="Ball Material"/>
+      <Parameter name="Horizon" type="double" value="{horizon:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Contact">
+    <Parameter name="Search Radius" type="double" value="{search_radius:.6e}"/>
+    <Parameter name="Search Frequency" type="int" value="100"/>
+    <ParameterList name="Models">
+      <ParameterList name="Ball Plate Contact">
+        <Parameter name="Contact Model" type="string" value="Short Range Force"/>
+        <Parameter name="Contact Radius" type="double" value="{contact_radius:.6e}"/>
+        <Parameter name="Spring Constant" type="double" value="1.0e13"/>
+      </ParameterList>
+    </ParameterList>
+    <ParameterList name="Interactions">
+      <ParameterList name="Interaction Ball Plate">
+        <Parameter name="First Block" type="string" value="{ball_block}"/>
+        <Parameter name="Second Block" type="string" value="{plate_block}"/>
+        <Parameter name="Contact Model" type="string" value="Ball Plate Contact"/>
+      </ParameterList>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Boundary Conditions">
+    <ParameterList name="Ball Initial Velocity X">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="x"/>
+      <Parameter name="Value" type="string" value="{vx:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Initial Velocity Y">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="y"/>
+      <Parameter name="Value" type="string" value="{vy:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Initial Velocity Z">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="z"/>
+      <Parameter name="Value" type="string" value="{vz:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Solver">
+    <Parameter name="Verbose" type="bool" value="{str(verbose).lower()}"/>
+    <Parameter name="Initial Time" type="double" value="0.0"/>
+    <Parameter name="Final Time" type="double" value="{final_time:.6e}"/>
+    <ParameterList name="Verlet">
+      <Parameter name="Fixed dt" type="double" value="{dt:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Output">
+    <Parameter name="Output File Type" type="string" value="ExodusII"/>
+    <Parameter name="Output Filename" type="string" value="{Path(mesh_file).stem}"/>
+    <Parameter name="Output Frequency" type="int" value="{output_frequency}"/>
+    <ParameterList name="Output Variables">
+      <Parameter name="Coordinates" type="bool" value="true"/>
+      <Parameter name="Displacement" type="bool" value="true"/>
+      <Parameter name="Velocity" type="bool" value="true"/>
+      <Parameter name="Force" type="bool" value="true"/>
+      <Parameter name="Force_Density" type="bool" value="true"/>
+      <Parameter name="Contact_Force_Density" type="bool" value="true"/>
+      <Parameter name="Block_Id" type="bool" value="true"/>
+      <Parameter name="Dilatation" type="bool" value="true"/>
+      <Parameter name="Kinetic_Energy" type="bool" value="true"/>
+      <Parameter name="Weighted_Volume" type="bool" value="true"/>
+      <Parameter name="Volume" type="bool" value="true"/>
+      <Parameter name="Global_Kinetic_Energy" type="bool" value="true"/>
+      <Parameter name="Global_Linear_Momentum" type="bool" value="true"/>
+      <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Linear_Momentum" type="bool" value="true"/>
+      <Parameter name="Angular_Momentum" type="bool" value="true"/>
+    </ParameterList>
+  </ParameterList>
+</ParameterList>
+'''
+    if output_xml is not None:
+        Path(output_xml).write_text(xml, encoding="utf-8")
+    return xml
