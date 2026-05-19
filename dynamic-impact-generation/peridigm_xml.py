@@ -28,7 +28,16 @@ def _nice_freq(raw: int) -> int:
     p = 10 ** int(math.log10(raw))
     return max(1, (raw // p) * p)
 
+def _nice_dt(raw: float) -> float:
+    """Round dt down to 1 significant figure.
 
+    Examples: 3.5e-7 → 3e-7, 1.8e-6 → 1e-6, 4.2e-5 → 4e-5.
+    """
+    if raw <= 0:
+        return raw
+    exp = math.floor(math.log10(raw))
+    base = 10 ** exp
+    return math.floor(raw / base) * base
 # ---------------------------------------------------------------------------
 # Freefall scenes
 # ---------------------------------------------------------------------------
@@ -60,12 +69,12 @@ def generate_vase_drop_peridigm_xml(
     floor_shear = 78.3e9
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
 
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
     t_fall = math.sqrt(2 * drop_height_m / gravity)
     final_time = t_fall * 1.5
 
     total_steps = int(final_time / dt)
-    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -228,9 +237,9 @@ def generate_mug_drop_peridigm_xml(
     floor_shear = 78.3e9
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
 
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
     final_time = 2.0
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
     output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
@@ -406,10 +415,10 @@ def generate_bullet_vase_peridigm_xml(
 
     c_p_ceramic = math.sqrt((vase_bulk + 4 * vase_shear / 3) / vase_density)
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
 
     final_time = 0.05
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
     output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
@@ -640,10 +649,10 @@ def generate_bullet_mug_peridigm_xml(
 
     c_p_ceramic = math.sqrt((mug_bulk + 4 * mug_shear / 3) / mug_density)
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
 
     final_time = 0.05
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
     output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
@@ -867,10 +876,10 @@ def generate_bullet_vase_nf_peridigm_xml(
         math.sqrt((vase_bulk + 4 * vase_shear / 3) / vase_density),
         math.sqrt((bullet_bulk + 4 * bullet_shear / 3) / bullet_density),
     )
-    dt = mesh_size_m / c_p * 0.7
+    dt = _nice_dt(mesh_size_m / c_p * 0.7)
     final_time = 0.005
     total_steps = int(final_time / dt)
-    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -1026,10 +1035,10 @@ def generate_bullet_mug_nf_peridigm_xml(
         math.sqrt((mug_bulk + 4 * mug_shear / 3) / mug_density),
         math.sqrt((bullet_bulk + 4 * bullet_shear / 3) / bullet_density),
     )
-    dt = mesh_size_m / c_p * 0.7
+    dt = _nice_dt(mesh_size_m / c_p * 0.7)
     final_time = 0.05
     total_steps = int(final_time / dt)
-    output_frequency = _nice_freq(max(1, round(1.0 / (2000.0 * dt))))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -1194,10 +1203,10 @@ def generate_ball_plate_peridigm_xml(
         math.sqrt((plate_bulk + 4 * plate_shear / 3) / plate_density),
         math.sqrt((ball_bulk  + 4 * ball_shear  / 3) / ball_density),
     )
-    dt = mesh_size_m / c_p * 0.7
+    dt = _nice_dt(mesh_size_m / c_p * 0.7)
     final_time = 0.005
     total_steps = int(final_time / dt)
-    output_frequency = _nice_freq(max(1, round(1.0 / (10000.0 * dt))))
+    output_frequency = _nice_freq(max(1, round(1.0 / (100000.0 * dt))))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius  = 2.0 * mesh_size_m
