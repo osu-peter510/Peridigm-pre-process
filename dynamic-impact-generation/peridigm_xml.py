@@ -200,6 +200,7 @@ def generate_vase_drop_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -367,6 +368,7 @@ def generate_mug_drop_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -605,6 +607,7 @@ def generate_bullet_vase_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -839,6 +842,7 @@ def generate_bullet_mug_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -1004,6 +1008,7 @@ def generate_bullet_vase_nf_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 </ParameterList>
@@ -1163,6 +1168,7 @@ def generate_bullet_mug_nf_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 </ParameterList>
