@@ -15,6 +15,8 @@ Scenarios
     bullet_vase_nf  — 400 m/s bullet impacts a floating vase (no floor)
     bullet_mug_nf   — 400 m/s bullet impacts a floating mug  (no floor)
 
+    ball_plate_nf   - random steel ball impacts a floating ceramic plate
+
   Kalthoff-Winkler fracture benchmark:
     kw_fracture     — notched steel board + cylindrical projectile (deterministic)
 
@@ -108,6 +110,7 @@ _DI_SCENARIOS = {
     "bullet_vase_nf": (_di.build_bullet_vase_nf_scene, generate_bullet_vase_nf_peridigm_xml),
     "bullet_mug_nf":  (_di.build_bullet_mug_nf_scene,  generate_bullet_mug_nf_peridigm_xml),
     "ball_plate":     (_di.build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
+    "ball_plate_nf":  (_di.build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
 }
 
 
@@ -127,11 +130,18 @@ def run_dynamic_impact(scenario: str, n_scenes: int, base_seed: int, max_nodes: 
             xml_path  = out_dir / f"{tag}.xml"
             cubit.cmd(f'export mesh "{mesh_path}" overwrite')
             xml_fn(str(mesh_path.name), info, str(xml_path))
-            manifest.append({
+            manifest_entry = {
                 "index": i, "tag": tag, "scenario": scenario, "seed": seed,
                 "status": "success",
                 "mesh_file": str(mesh_path), "xml_file": str(xml_path),
-            })
+            }
+            if scenario in {"ball_plate", "ball_plate_nf"}:
+                manifest_entry["parameters"] = {
+                    key: value
+                    for key, value in info.items()
+                    if not key.endswith("_vol")
+                }
+            manifest.append(manifest_entry)
             echo(f"  -> {mesh_path.name}  {xml_path.name}")
         except Exception as exc:
             echo(f"  ERROR: {exc}")
@@ -250,6 +260,7 @@ ALL_SCENARIOS = {
     "bullet_vase_nf": run_dynamic_impact,
     "bullet_mug_nf":  run_dynamic_impact,
     "ball_plate":     run_dynamic_impact,
+    "ball_plate_nf":  run_dynamic_impact,
     "kw_fracture":    run_kw_fracture,
     "cloth_fall":     run_cloth_fall,
 }
@@ -274,7 +285,8 @@ scenarios:
   bullet_mug      — 400 m/s bullet impacts a mug  sitting on a floor
   bullet_vase_nf  — 400 m/s bullet impacts a floating vase (no floor)
   bullet_mug_nf   — 400 m/s bullet impacts a floating mug  (no floor)
-  ball_plate      — steel ball impacts a ceramic plate at 50-300 m/s
+  ball_plate_nf   — random steel ball impacts a floating ceramic plate
+  ball_plate      — backward-compatible alias for ball_plate_nf
   kw_fracture     — Kalthoff-Winkler notched board + cylinder (deterministic)
   cloth_fall      — randomised cloth falling over 3 bricks + 1 sphere
 
@@ -288,7 +300,7 @@ examples:
   python generate.py bullet_mug     20 --base-seed 100 --max-nodes 30000
   python generate.py bullet_vase_nf 30
   python generate.py bullet_mug_nf  30
-  python generate.py ball_plate     50 --max-nodes 30000
+  python generate.py ball_plate_nf  50 --max-nodes 30000
   python generate.py kw_fracture     1
   python generate.py cloth_fall    100 --max-nodes 20000
 """,

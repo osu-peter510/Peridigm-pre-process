@@ -4,13 +4,14 @@ generate_scenes.py — Fragmentation Scene Generator
 ====================================================
 Generates Cubit mesh (.g) + Peridigm XML (.xml) pairs for brittle fracture simulations.
 
-Six scene types:
+Dynamic-impact scene types:
   freefall_vase   — Vase dropped from ~1.5-2.5 m onto a ground plane
   freefall_mug    — Mug dropped from ~1.5-2.5 m onto a ground plane
   bullet_vase     — Bullet fired at a vase sitting on a ground plane
   bullet_mug      — Bullet fired at a mug sitting on a ground plane
   bullet_vase_nf  — Bullet fired at a floating vase (no floor)
   bullet_mug_nf   — Bullet fired at a floating mug (no floor)
+  ball_plate_nf   — Random steel ball fired at a floating ceramic plate
 
 Objects: parametric mug (cylinder + handle) or vase (spline-revolved profile).
 Material: Brittle elastic with Critical Stretch damage model.
@@ -692,11 +693,12 @@ def build_bullet_mug_nf_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
 
 
 def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
-    """Ball impacts a circular plate from a random direction.
+    """Ball impacts a floating circular plate from a random direction.
 
-    Ball: fixed radius 5 mm (steel), no damage.
-    Plate: random radius 50-150 mm, random thickness 2-5 mm (ceramic, with damage).
-    Speed: 50-300 m/s.  Angle from vertical: 0-30 deg.
+    Ball: random diameter 10-15 mm (steel), no damage.
+    Plate: random diameter 100-150 mm and thickness 2-4 mm (ceramic, with damage).
+    Speed: 20-100 m/s.  Angle from vertical: 0-30 deg.  The trajectory
+    targets a uniformly sampled point in the usable central 60% of the plate.
 
     Block 1 / Nodeset 1: Plate
     Block 2 / Nodeset 2: Ball
@@ -705,11 +707,11 @@ def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
     cubit.cmd("reset")
 
     # --- Plate parameters (randomised) ---
-    plate_radius_mm    = rng.uniform(50, 150)
-    plate_thickness_mm = rng.uniform(2, 5)
+    plate_radius_mm    = rng.uniform(50, 75)
+    plate_thickness_mm = rng.uniform(2, 4)
 
-    # --- Ball parameters (fixed size) ---
-    ball_radius_mm = 15.0
+    # --- Ball parameters (randomised) ---
+    ball_radius_mm = rng.uniform(5, 7.5)
 
     # Mesh size: driven by ball diameter (need ≥3 elements across ball diameter)
     mesh_size = ball_radius_mm / 3
@@ -743,7 +745,7 @@ def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
     # Impact angle: elevation from vertical (0 = straight down, 30 = oblique)
     elevation_deg = rng.uniform(0, 30)
     azimuth_deg   = rng.uniform(0, 360)
-    ball_speed    = rng.uniform(50, 300)
+    ball_speed    = rng.uniform(20, 100)
 
     elev_rad = math.radians(elevation_deg)
     azim_rad = math.radians(azimuth_deg)
@@ -753,18 +755,23 @@ def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
     dy =  math.sin(elev_rad) * math.sin(azim_rad)
     dz = -math.cos(elev_rad)  # negative z = downward
 
-    # Random impact offset on plate surface (within 60% of plate radius)
-    impact_offset = rng.uniform(0, plate_radius_mm * 0.6)
+    # Random aim point, sampled uniformly by area.  Leave a ball-radius margin
+    # so the projected contact stays away from the plate edge.
+    max_impact_offset = max(0.0, plate_radius_mm - ball_radius_mm) * 0.6
+    impact_offset = max_impact_offset * math.sqrt(rng.random())
     impact_angle  = rng.uniform(0, 360)
     impact_x = impact_offset * math.cos(math.radians(impact_angle))
     impact_y = impact_offset * math.sin(math.radians(impact_angle))
 
     # Place ball 80 mm above plate along the approach direction
     standoff = 80.0
+    initial_x = impact_x - dx * standoff
+    initial_y = impact_y - dy * standoff
+    initial_z = -dz * standoff
     cubit.cmd(f"move volume {ball_vol} "
-              f"x {impact_x - dx * standoff} "
-              f"y {impact_y - dy * standoff} "
-              f"z {-dz * standoff}")
+              f"x {initial_x} "
+              f"y {initial_y} "
+              f"z {initial_z}")
 
     # Assign blocks and nodesets
     cubit.cmd(f"block 1 volume {plate_vol}")
@@ -784,13 +791,23 @@ def build_ball_plate_scene(seed: int = 42, max_nodes: int = 50000) -> dict:
 
     return {
         "plate_vol": plate_vol, "ball_vol": ball_vol,
+        "plate_diameter_mm": 2.0 * plate_radius_mm,
         "plate_radius_mm": plate_radius_mm,
         "plate_thickness_mm": plate_thickness_mm,
+        "ball_diameter_mm": 2.0 * ball_radius_mm,
         "ball_radius_mm": ball_radius_mm,
         "ball_speed": ball_speed,
+        "initial_velocity_m_s": [dx * ball_speed, dy * ball_speed, dz * ball_speed],
+        "shooting_angle_deg": elevation_deg,
+        "shooting_azimuth_deg": azimuth_deg,
         "elevation_deg": elevation_deg,
         "azimuth_deg": azimuth_deg,
         "dx": dx, "dy": dy, "dz": dz,
+        "contact_position_mm": [impact_x, impact_y, 0.0],
+        "contact_radius_mm": impact_offset,
+        "contact_azimuth_deg": impact_angle,
+        "initial_position_mm": [initial_x, initial_y, initial_z],
+        "standoff_mm": standoff,
         "mesh_size": mesh_size * relaxation,
         "seed": seed,
     }
@@ -808,6 +825,7 @@ SCENARIOS = {
     "bullet_vase_nf": (build_bullet_vase_nf_scene, generate_bullet_vase_nf_peridigm_xml),
     "bullet_mug_nf":  (build_bullet_mug_nf_scene,  generate_bullet_mug_nf_peridigm_xml),
     "ball_plate":     (build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
+    "ball_plate_nf":  (build_ball_plate_scene,     generate_ball_plate_peridigm_xml),
 }
 
 
@@ -845,7 +863,7 @@ def main(
             cubit.cmd(f'export mesh "{mesh_path}" overwrite')
             xml_fn(str(mesh_path.name), info, str(xml_path))
 
-            manifest.append({
+            manifest_entry = {
                 "index": i,
                 "tag": tag,
                 "scenario": scenario,
@@ -853,7 +871,14 @@ def main(
                 "mesh_file": str(mesh_path),
                 "xml_file":  str(xml_path),
                 "status": "success",
-            })
+            }
+            if scenario in {"ball_plate", "ball_plate_nf"}:
+                manifest_entry["parameters"] = {
+                    key: value
+                    for key, value in info.items()
+                    if not key.endswith("_vol")
+                }
+            manifest.append(manifest_entry)
             echo(f"  -> {mesh_path.name}  {xml_path.name}")
         except Exception as exc:
             echo(f"  ERROR: {exc}")
@@ -889,13 +914,15 @@ scenarios:
   bullet_mug      — 400 m/s bullet impacts a mug  sitting on a floor
   bullet_vase_nf  — 400 m/s bullet impacts a floating vase (no floor)
   bullet_mug_nf   — 400 m/s bullet impacts a floating mug  (no floor)
-  ball_plate      — steel ball impacts a ceramic plate at 50-300 m/s
+  ball_plate_nf   — random steel ball impacts a floating ceramic plate
+  ball_plate      — backward-compatible alias for ball_plate_nf
 
 examples:
   python generate_scenes.py freefall_vase  50
   python generate_scenes.py bullet_mug     20 --base-seed 100 --max-nodes 30000
   python generate_scenes.py bullet_vase    10 --output-dir my_dataset
   python generate_scenes.py bullet_vase_nf 30
+  python generate_scenes.py ball_plate_nf  50 --max-nodes 30000
 """,
     )
     parser.add_argument(

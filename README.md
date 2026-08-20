@@ -2,7 +2,7 @@
 
 Preprocessing scripts for generating Coreform Cubit meshes (`.g`) and Peridigm simulation configurations (`.xml`) across three brittle/soft-body fracture datasets.
 
-A single unified entry point (`generate.py`) covers all eight scenarios. Each sub-module can also be run independently.
+A single unified entry point (`generate.py`) covers all scenarios. Each sub-module can also be run independently.
 
 ---
 
@@ -21,10 +21,13 @@ Peridigm-pre-process-claude/
 │   ├── bullet_mug/
 │   ├── bullet_vase_nf/
 │   ├── bullet_mug_nf/
-│   ├── ball_plate/
+│   ├── ball_plate_nf/
 │   ├── kw_fracture/
 │   └── cloth_fall/
 │       └── <scenario>/manifest.json
+│
+├── ball-plate-nf/                 # Standalone randomized ball/plate (no floor)
+│   └── generate_scene.py
 │
 ├── kw-board-impact/               # Kalthoff-Winkler fracture benchmark
 │   ├── block_generation.py        # Geometry + mesh builder (importable + standalone)
@@ -81,7 +84,8 @@ conda activate peridigm-preprocess
 | `bullet_mug`     | dynamic-impact | 400 m/s bullet impacts a mug sitting on a floor |
 | `bullet_vase_nf` | dynamic-impact | 400 m/s bullet impacts a floating vase (no floor) |
 | `bullet_mug_nf`  | dynamic-impact | 400 m/s bullet impacts a floating mug (no floor) |
-| `ball_plate`     | dynamic-impact | Steel ball (r=5 mm) impacts a ceramic plate at 50-300 m/s |
+| `ball_plate_nf`  | dynamic-impact | Random steel ball impacts a floating ceramic plate at 20-100 m/s |
+| `ball_plate`     | dynamic-impact | Backward-compatible alias for `ball_plate_nf` |
 | `kw_fracture`    | kw-board-impact | Kalthoff-Winkler notched steel board + cylindrical projectile |
 | `cloth_fall`     | cloth-fall | Randomised cloth falling over 3 bricks + 1 sphere |
 
@@ -102,7 +106,7 @@ python generate.py bullet_vase     20 --base-seed 100
 python generate.py bullet_mug      20 --base-seed 100
 python generate.py bullet_vase_nf  30 --max-nodes 30000
 python generate.py bullet_mug_nf   30 --max-nodes 30000
-python generate.py ball_plate       50 --max-nodes 30000
+python generate.py ball_plate_nf    50 --max-nodes 30000
 python generate.py kw_fracture      1
 python generate.py cloth_fall     100 --max-nodes 20000
 
@@ -123,6 +127,9 @@ Output is written to `output/<scenario>/`. Each run appends a `manifest.json` wi
 Each sub-module can still be run independently, writing output to its own directory:
 
 ```bash
+# Randomized ball/plate impact without a floor
+python ball-plate-nf/generate_scene.py --n-scenes 1000 --seed 0 --output-dir output/ball_plate_nf
+
 # KW board impact
 cd kw-board-impact
 python block_generation.py [--output-dir DIR]
@@ -219,7 +226,7 @@ Run every scenario simultaneously as background processes on the login node. Eac
 mkdir -p logs
 SCENES=50
 
-for scenario in freefall_vase freefall_mug bullet_vase bullet_mug bullet_vase_nf bullet_mug_nf ball_plate kw_fracture cloth_fall; do
+for scenario in freefall_vase freefall_mug bullet_vase bullet_mug bullet_vase_nf bullet_mug_nf ball_plate_nf kw_fracture cloth_fall; do
     python generate.py $scenario $SCENES --max-nodes 50000 > logs/${scenario}.log 2>&1 &
 done
 
@@ -230,7 +237,7 @@ echo "All done."
 **PowerShell (Windows):**
 ```powershell
 New-Item -ItemType Directory -Force logs | Out-Null
-$scenarios = @("freefall_vase","freefall_mug","bullet_vase","bullet_mug","bullet_vase_nf","bullet_mug_nf","ball_plate","kw_fracture","cloth_fall")
+$scenarios = @("freefall_vase","freefall_mug","bullet_vase","bullet_mug","bullet_vase_nf","bullet_mug_nf","ball_plate_nf","kw_fracture","cloth_fall")
 $jobs = $scenarios | ForEach-Object {
     Start-Process python -ArgumentList "generate.py $_ 50 --max-nodes 50000" `
         -RedirectStandardOutput "logs\$_.log" -NoNewWindow -PassThru
