@@ -1,8 +1,8 @@
 # Peridigm Preprocessing Pipeline
 
-Preprocessing scripts for generating Coreform Cubit meshes (`.g`) and Peridigm simulation configurations (`.xml`) across three brittle/soft-body fracture datasets.
+Preprocessing scripts for generating ExodusII meshes (`.g`) and Peridigm simulation configurations (`.xml`) across brittle/soft-body fracture datasets.
 
-A single unified entry point (`generate.py`) covers all eight scenarios. Each sub-module can also be run independently.
+A single unified entry point (`generate.py`) covers all scenarios. Each sub-module can also be run independently.
 
 ---
 
@@ -21,9 +21,13 @@ Peridigm-pre-process-claude/
 │   ├── bullet_mug/
 │   ├── bullet_vase_nf/
 │   ├── bullet_mug_nf/
+│   ├── ball_plate_nf/
 │   ├── kw_fracture/
 │   └── cloth_fall/
 │       └── <scenario>/manifest.json
+│
+├── ball-plate-nf/                 # Open-source Gmsh/meshio ball/plate backend
+│   └── generate_scene.py
 │
 ├── kw-board-impact/               # Kalthoff-Winkler fracture benchmark
 │   ├── block_generation.py        # Geometry + mesh builder (importable + standalone)
@@ -56,7 +60,8 @@ Peridigm-pre-process-claude/
 
 ### Required (manual installation)
 
-**Coreform Cubit 2025.12** — all geometry and meshing is driven through its Python API.
+**Coreform Cubit 2025.12** — required by the unified entry point and all
+scenarios except the standalone `ball-plate-nf` Gmsh backend.
 Download from [coreform.com](https://coreform.com/products/coreform-cubit/).
 
 Set `CUBIT_PATH` once at the top of `generate.py` (default: `E:\Program Files\Coreform Cubit 2025.12\bin`). When using sub-module scripts standalone, update their local `CUBIT_PATH` variable as well.
@@ -67,6 +72,17 @@ Set `CUBIT_PATH` once at the top of `generate.py` (default: `E:\Program Files\Co
 conda env create -f environment.yml
 conda activate peridigm-preprocess
 ```
+
+For the license-free `ball-plate-nf` backend, create the dedicated Conda
+environment instead:
+
+```bash
+conda env create -f environment-gmsh.yml
+conda activate peridigm-gmsh
+```
+
+This environment uses Gmsh for tetrahedral meshing, meshio for ExodusII output,
+and netCDF4 to add Peridigm-compatible element-block and node-set metadata.
 
 ---
 
@@ -80,6 +96,8 @@ conda activate peridigm-preprocess
 | `bullet_mug`     | dynamic-impact | 400 m/s bullet impacts a mug sitting on a floor |
 | `bullet_vase_nf` | dynamic-impact | 400 m/s bullet impacts a floating vase (no floor) |
 | `bullet_mug_nf`  | dynamic-impact | 400 m/s bullet impacts a floating mug (no floor) |
+| `ball_plate_nf`  | Gmsh/meshio | Random steel ball impacts a floating ceramic plate at 20-100 m/s |
+| `ball_plate`     | dynamic-impact | Backward-compatible alias for `ball_plate_nf` |
 | `kw_fracture`    | kw-board-impact | Kalthoff-Winkler notched steel board + cylindrical projectile |
 | `cloth_fall`     | cloth-fall | Randomised cloth falling over 3 bricks + 1 sphere |
 
@@ -100,6 +118,7 @@ python generate.py bullet_vase     20 --base-seed 100
 python generate.py bullet_mug      20 --base-seed 100
 python generate.py bullet_vase_nf  30 --max-nodes 30000
 python generate.py bullet_mug_nf   30 --max-nodes 30000
+python generate.py ball_plate_nf    50 --max-nodes 30000
 python generate.py kw_fracture      1
 python generate.py cloth_fall     100 --max-nodes 20000
 
@@ -120,6 +139,10 @@ Output is written to `output/<scenario>/`. Each run appends a `manifest.json` wi
 Each sub-module can still be run independently, writing output to its own directory:
 
 ```bash
+# Randomized ball/plate impact without a floor
+conda activate peridigm-gmsh
+python ball-plate-nf/generate_scene.py --n-scenes 1000 --seed 0 --output-dir output/ball_plate_nf --max-elements 12000 --resume
+
 # KW board impact
 cd kw-board-impact
 python block_generation.py [--output-dir DIR]
@@ -138,6 +161,27 @@ python generate_scenes.py bullet_mug 20 --base-seed 100 --output-dir my_dataset
 ---
 
 ## Module Descriptions
+
+### `ball-plate-nf/`
+
+Generates a free-floating ceramic plate and an incoming steel ball without a
+floor or Cubit license. Plate diameter (100–150 mm), plate thickness (2–4 mm),
+ball diameter (10–15 mm), impact position/direction, and speed (20–100 m/s) are
+sampled reproducibly from the scene seed. The initial ball position is solved
+from its speed, direction, and Peridigm contact radii. Every scene begins with
+the ball surface strictly outside the contact search radius; the short-range
+contact model activates within `1e-4` to `2e-4` seconds. The generator writes a
+validated
+ExodusII mesh, Peridigm XML, per-scene JSON metadata, and a resumable batch
+manifest. First-order tetrahedra are adaptively coarsened to a hard default cap
+of 12,000 elements per scene. Exodus blocks are named `block_1` (plate) and
+`block_2` (ball), with matching `nodelist_1` and `nodelist_2` node sets. The
+default solver settings are a `2.0e-7` s fixed step, `8.0e-4` s final time, and
+an output frequency of 25 steps. Dataset exports can share each scene mesh under
+`geometry/NNNN/` while keeping the 0.0005 and 0.0015 damage variants under
+`critical-stretch-0p0005/NNNN/` and `critical-stretch-0p0015/NNNN/`.
+
+**Key files:** `generate_scene.py`, `environment-gmsh.yml`
 
 ### `kw-board-impact/`
 
@@ -216,7 +260,7 @@ Run every scenario simultaneously as background processes on the login node. Eac
 mkdir -p logs
 SCENES=50
 
-for scenario in freefall_vase freefall_mug bullet_vase bullet_mug bullet_vase_nf bullet_mug_nf kw_fracture cloth_fall; do
+for scenario in freefall_vase freefall_mug bullet_vase bullet_mug bullet_vase_nf bullet_mug_nf ball_plate_nf kw_fracture cloth_fall; do
     python generate.py $scenario $SCENES --max-nodes 50000 > logs/${scenario}.log 2>&1 &
 done
 
@@ -227,7 +271,7 @@ echo "All done."
 **PowerShell (Windows):**
 ```powershell
 New-Item -ItemType Directory -Force logs | Out-Null
-$scenarios = @("freefall_vase","freefall_mug","bullet_vase","bullet_mug","bullet_vase_nf","bullet_mug_nf","kw_fracture","cloth_fall")
+$scenarios = @("freefall_vase","freefall_mug","bullet_vase","bullet_mug","bullet_vase_nf","bullet_mug_nf","ball_plate_nf","kw_fracture","cloth_fall")
 $jobs = $scenarios | ForEach-Object {
     Start-Process python -ArgumentList "generate.py $_ 50 --max-nodes 50000" `
         -RedirectStandardOutput "logs\$_.log" -NoNewWindow -PassThru

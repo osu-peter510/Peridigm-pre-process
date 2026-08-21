@@ -18,6 +18,26 @@ import math
 from pathlib import Path
 
 
+def _nice_freq(raw: int) -> int:
+    """Round *down* to 1 significant figure for clean output numbering.
+
+    Examples: 1429 → 1000, 5432 → 5000, 327 → 300, 14 → 10, 7 → 7.
+    """
+    if raw < 10:
+        return max(1, raw)
+    p = 10 ** int(math.log10(raw))
+    return max(1, (raw // p) * p)
+
+def _nice_dt(raw: float) -> float:
+    """Round dt down to 1 significant figure.
+
+    Examples: 3.5e-7 → 3e-7, 1.8e-6 → 1e-6, 4.2e-5 → 4e-5.
+    """
+    if raw <= 0:
+        return raw
+    exp = math.floor(math.log10(raw))
+    base = 10 ** exp
+    return math.floor(raw / base) * base
 # ---------------------------------------------------------------------------
 # Freefall scenes
 # ---------------------------------------------------------------------------
@@ -49,12 +69,12 @@ def generate_vase_drop_peridigm_xml(
     floor_shear = 78.3e9
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
 
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
     t_fall = math.sqrt(2 * drop_height_m / gravity)
     final_time = t_fall * 1.5
 
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -180,6 +200,7 @@ def generate_vase_drop_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -217,11 +238,11 @@ def generate_mug_drop_peridigm_xml(
     floor_shear = 78.3e9
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
 
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
     final_time = 2.0
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -347,6 +368,7 @@ def generate_mug_drop_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -395,12 +417,12 @@ def generate_bullet_vase_peridigm_xml(
 
     c_p_ceramic = math.sqrt((vase_bulk + 4 * vase_shear / 3) / vase_density)
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
 
     final_time = 0.05
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -585,6 +607,7 @@ def generate_bullet_vase_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -629,12 +652,12 @@ def generate_bullet_mug_peridigm_xml(
 
     c_p_ceramic = math.sqrt((mug_bulk + 4 * mug_shear / 3) / mug_density)
     c_p_steel = math.sqrt((floor_bulk + 4 * floor_shear / 3) / floor_density)
-    dt = mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7
+    dt = _nice_dt(mesh_size_m / max(c_p_ceramic, c_p_steel) * 0.7)
 
     final_time = 0.05
-    fps = 2000
+    fps = 20000
     total_steps = int(final_time / dt)
-    output_frequency = max(1, total_steps // int(final_time * fps))
+    output_frequency = _nice_freq(max(1, total_steps // int(final_time * fps)))
 
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
@@ -819,6 +842,7 @@ def generate_bullet_mug_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 
@@ -856,10 +880,10 @@ def generate_bullet_vase_nf_peridigm_xml(
         math.sqrt((vase_bulk + 4 * vase_shear / 3) / vase_density),
         math.sqrt((bullet_bulk + 4 * bullet_shear / 3) / bullet_density),
     )
-    dt = mesh_size_m / c_p * 0.7
+    dt = _nice_dt(mesh_size_m / c_p * 0.7)
     final_time = 0.005
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -984,6 +1008,7 @@ def generate_bullet_vase_nf_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 </ParameterList>
@@ -1015,10 +1040,10 @@ def generate_bullet_mug_nf_peridigm_xml(
         math.sqrt((mug_bulk + 4 * mug_shear / 3) / mug_density),
         math.sqrt((bullet_bulk + 4 * bullet_shear / 3) / bullet_density),
     )
-    dt = mesh_size_m / c_p * 0.7
+    dt = _nice_dt(mesh_size_m / c_p * 0.7)
     final_time = 0.05
     total_steps = int(final_time / dt)
-    output_frequency = max(1, round(1.0 / (2000.0 * dt)))
+    output_frequency = _nice_freq(max(1, round(1.0 / (20000.0 * dt))))
     contact_radius = 1.1 * mesh_size_m
     search_radius = 2.0 * mesh_size_m
     vx = -info["dx"] * bullet_speed
@@ -1143,6 +1168,170 @@ def generate_bullet_mug_nf_peridigm_xml(
       <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
       <Parameter name="Linear_Momentum" type="bool" value="true"/>
       <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
+    </ParameterList>
+  </ParameterList>
+</ParameterList>
+'''
+    if output_xml is not None:
+        Path(output_xml).write_text(xml, encoding="utf-8")
+    return xml
+
+
+# ---------------------------------------------------------------------------
+# Ball-plate impact (no floor)
+# ---------------------------------------------------------------------------
+
+def generate_ball_plate_peridigm_xml(
+    mesh_file: str,
+    info: dict,
+    output_xml: str | None = None,
+    *,
+    plate_block: str = "block_1",
+    ball_block: str = "block_2",
+    plate_nodeset: str = "nodelist_1",
+    ball_nodeset: str = "nodelist_2",
+    gravity: float = 9.81,
+    dt: float = 2.0e-7,
+    final_time: float = 8.0e-4,
+    output_frequency: int = 25,
+    critical_stretch: float = 0.0005,
+    verbose: bool = False,
+) -> str:
+    """Generate Peridigm XML for ball-plate impact (no floor).
+
+    Block 1 / Nodeset 1: Plate (brittle ceramic, with damage)
+    Block 2 / Nodeset 2: Ball  (steel, no damage)
+    """
+    mesh_size_m = info["mesh_size"] * 0.001
+    horizon = 3.015 * mesh_size_m
+
+    plate_density, plate_bulk, plate_shear = 2200.0, 14.90e9, 8.94e9
+    ball_density,  ball_bulk,  ball_shear  = 7700.0, 160.0e9, 78.3e9
+
+    if dt <= 0.0:
+        raise ValueError("dt must be positive")
+    if final_time <= 0.0:
+        raise ValueError("final_time must be positive")
+    if output_frequency <= 0:
+        raise ValueError("output_frequency must be positive")
+    if critical_stretch <= 0.0:
+        raise ValueError("critical_stretch must be positive")
+
+    contact_radius = info.get("contact_radius_mm", 1.1 * info["mesh_size"]) * 0.001
+    search_radius = info.get("search_radius_mm", 1.5 * info["mesh_size"]) * 0.001
+
+    vx = info["dx"] * info["ball_speed"]
+    vy = info["dy"] * info["ball_speed"]
+    vz = info["dz"] * info["ball_speed"]
+
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<ParameterList name="Peridigm">
+  <ParameterList name="Discretization">
+    <Parameter name="Type" type="string" value="Exodus"/>
+    <Parameter name="Input Mesh File" type="string" value="{mesh_file}"/>
+  </ParameterList>
+  <ParameterList name="Materials">
+    <ParameterList name="Plate Material">
+      <Parameter name="Material Model" type="string" value="Elastic"/>
+      <Parameter name="Density" type="double" value="{plate_density}"/>
+      <Parameter name="Bulk Modulus" type="double" value="{plate_bulk:.6e}"/>
+      <Parameter name="Shear Modulus" type="double" value="{plate_shear:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Material">
+      <Parameter name="Material Model" type="string" value="Elastic"/>
+      <Parameter name="Density" type="double" value="{ball_density}"/>
+      <Parameter name="Bulk Modulus" type="double" value="{ball_bulk:.6e}"/>
+      <Parameter name="Shear Modulus" type="double" value="{ball_shear:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Damage Models">
+    <ParameterList name="Plate Damage">
+      <Parameter name="Damage Model" type="string" value="Critical Stretch"/>
+      <Parameter name="Critical Stretch" type="double" value="{critical_stretch:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Blocks">
+    <ParameterList name="Plate Block">
+      <Parameter name="Block Names" type="string" value="{plate_block}"/>
+      <Parameter name="Material" type="string" value="Plate Material"/>
+      <Parameter name="Damage Model" type="string" value="Plate Damage"/>
+      <Parameter name="Horizon" type="double" value="{horizon:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Block">
+      <Parameter name="Block Names" type="string" value="{ball_block}"/>
+      <Parameter name="Material" type="string" value="Ball Material"/>
+      <Parameter name="Horizon" type="double" value="{horizon:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Contact">
+    <Parameter name="Search Radius" type="double" value="{search_radius:.6e}"/>
+    <Parameter name="Search Frequency" type="int" value="100"/>
+    <ParameterList name="Models">
+      <ParameterList name="Ball Plate Contact">
+        <Parameter name="Contact Model" type="string" value="Short Range Force"/>
+        <Parameter name="Contact Radius" type="double" value="{contact_radius:.6e}"/>
+        <Parameter name="Spring Constant" type="double" value="1.0e13"/>
+      </ParameterList>
+    </ParameterList>
+    <ParameterList name="Interactions">
+      <ParameterList name="Interaction Ball Plate">
+        <Parameter name="First Block" type="string" value="{ball_block}"/>
+        <Parameter name="Second Block" type="string" value="{plate_block}"/>
+        <Parameter name="Contact Model" type="string" value="Ball Plate Contact"/>
+      </ParameterList>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Boundary Conditions">
+    <ParameterList name="Ball Initial Velocity X">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="x"/>
+      <Parameter name="Value" type="string" value="{vx:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Initial Velocity Y">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="y"/>
+      <Parameter name="Value" type="string" value="{vy:.6e}"/>
+    </ParameterList>
+    <ParameterList name="Ball Initial Velocity Z">
+      <Parameter name="Type" type="string" value="Initial Velocity"/>
+      <Parameter name="Node Set" type="string" value="{ball_nodeset}"/>
+      <Parameter name="Coordinate" type="string" value="z"/>
+      <Parameter name="Value" type="string" value="{vz:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Solver">
+    <Parameter name="Verbose" type="bool" value="{str(verbose).lower()}"/>
+    <Parameter name="Initial Time" type="double" value="0.0"/>
+    <Parameter name="Final Time" type="double" value="{final_time:.6e}"/>
+    <ParameterList name="Verlet">
+      <Parameter name="Fixed dt" type="double" value="{dt:.6e}"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Output">
+    <Parameter name="Output File Type" type="string" value="ExodusII"/>
+    <Parameter name="Output Filename" type="string" value="{Path(mesh_file).stem}"/>
+    <Parameter name="Output Frequency" type="int" value="{output_frequency}"/>
+    <ParameterList name="Output Variables">
+      <Parameter name="Coordinates" type="bool" value="true"/>
+      <Parameter name="Displacement" type="bool" value="true"/>
+      <Parameter name="Velocity" type="bool" value="true"/>
+      <Parameter name="Force" type="bool" value="true"/>
+      <Parameter name="Force_Density" type="bool" value="true"/>
+      <Parameter name="Contact_Force_Density" type="bool" value="true"/>
+      <Parameter name="Block_Id" type="bool" value="true"/>
+      <Parameter name="Dilatation" type="bool" value="true"/>
+      <Parameter name="Kinetic_Energy" type="bool" value="true"/>
+      <Parameter name="Weighted_Volume" type="bool" value="true"/>
+      <Parameter name="Volume" type="bool" value="true"/>
+      <Parameter name="Global_Kinetic_Energy" type="bool" value="true"/>
+      <Parameter name="Global_Linear_Momentum" type="bool" value="true"/>
+      <Parameter name="Global_Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Linear_Momentum" type="bool" value="true"/>
+      <Parameter name="Angular_Momentum" type="bool" value="true"/>
+      <Parameter name="Damage" type="bool" value="true"/>
     </ParameterList>
   </ParameterList>
 </ParameterList>

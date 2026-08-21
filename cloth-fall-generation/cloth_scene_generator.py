@@ -879,7 +879,7 @@ class ClothFallSceneGenerator:
         out = _plist(root, "Output")
         _p(out, "Output File Type", "string", "ExodusII")
         _p(out, "Output Filename", "string", "cloth_fall")
-        _p(out, "Output Frequency", "int", 250)  # 2000 fps at dt=2e-6
+        _p(out, "Output Frequency", "int", 200)  # ~2000 fps at dt=2e-6, rounded down to 1 sig fig
         ov = _plist(out, "Output Variables")
         for var in ["Coordinates", "Displacement", "Velocity", "Force", "Force_Density",
                     "Contact_Force_Density", "Block_Id", "Dilatation", "Kinetic_Energy",
