@@ -1,0 +1,10 @@
+name: peridigm-gmsh
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - numpy
+  - gmsh
+  - python-gmsh
+  - meshio
+  - netcdf4

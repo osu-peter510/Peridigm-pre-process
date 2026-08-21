@@ -1192,6 +1192,10 @@ def generate_ball_plate_peridigm_xml(
     plate_nodeset: str = "nodelist_1",
     ball_nodeset: str = "nodelist_2",
     gravity: float = 9.81,
+    dt: float = 2.0e-7,
+    final_time: float = 8.0e-4,
+    output_frequency: int = 25,
+    critical_stretch: float = 0.0005,
     verbose: bool = False,
 ) -> str:
     """Generate Peridigm XML for ball-plate impact (no floor).
@@ -1205,17 +1209,17 @@ def generate_ball_plate_peridigm_xml(
     plate_density, plate_bulk, plate_shear = 2200.0, 14.90e9, 8.94e9
     ball_density,  ball_bulk,  ball_shear  = 7700.0, 160.0e9, 78.3e9
 
-    c_p = max(
-        math.sqrt((plate_bulk + 4 * plate_shear / 3) / plate_density),
-        math.sqrt((ball_bulk  + 4 * ball_shear  / 3) / ball_density),
-    )
-    dt = _nice_dt(mesh_size_m / c_p * 0.7)
-    final_time = 0.005
-    total_steps = int(final_time / dt)
-    output_frequency = _nice_freq(max(1, round(1.0 / (100000.0 * dt))))
+    if dt <= 0.0:
+        raise ValueError("dt must be positive")
+    if final_time <= 0.0:
+        raise ValueError("final_time must be positive")
+    if output_frequency <= 0:
+        raise ValueError("output_frequency must be positive")
+    if critical_stretch <= 0.0:
+        raise ValueError("critical_stretch must be positive")
 
-    contact_radius = 1.1 * mesh_size_m
-    search_radius  = 2.0 * mesh_size_m
+    contact_radius = info.get("contact_radius_mm", 1.1 * info["mesh_size"]) * 0.001
+    search_radius = info.get("search_radius_mm", 1.5 * info["mesh_size"]) * 0.001
 
     vx = info["dx"] * info["ball_speed"]
     vy = info["dy"] * info["ball_speed"]
@@ -1244,7 +1248,7 @@ def generate_ball_plate_peridigm_xml(
   <ParameterList name="Damage Models">
     <ParameterList name="Plate Damage">
       <Parameter name="Damage Model" type="string" value="Critical Stretch"/>
-      <Parameter name="Critical Stretch" type="double" value="0.0005"/>
+      <Parameter name="Critical Stretch" type="double" value="{critical_stretch:.6e}"/>
     </ParameterList>
   </ParameterList>
   <ParameterList name="Blocks">
