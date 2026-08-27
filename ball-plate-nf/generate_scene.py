@@ -447,7 +447,7 @@ def build_scene(
         tag = tag or f"ball_plate_nf_{seed:04d}"
         scene_id = f"{seed:04d}"
         mesh_path = out_dir / "geometry" / scene_id / f"{tag}.g"
-        metadata_path = out_dir / f"{tag}.json"
+        metadata_path = mesh_path.with_suffix(".json")
         mesh_path.parent.mkdir(parents=True, exist_ok=True)
         xml_paths = {
             variant_name: out_dir / folder_name / scene_id / f"{tag}.xml"
@@ -543,6 +543,7 @@ def build_scenes(
     tag: str | None = None,
     resume: bool = False,
     verbose_gmsh: bool = False,
+    write_manifest: bool = True,
 ) -> dict:
     """Generate a batch and persist progress after every scene."""
     if n_scenes <= 0:
@@ -552,7 +553,7 @@ def build_scenes(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = out_dir / "manifest.json"
+    manifest_path = out_dir / "manifest.json" if write_manifest else None
     manifest = []
 
     gmsh.initialize(["gmsh", "-nopopup"])
@@ -570,7 +571,7 @@ def build_scenes(
                 variant_name: out_dir / folder_name / scene_id / f"{scene_tag}.xml"
                 for variant_name, (folder_name, _) in XML_VARIANTS.items()
             }
-            metadata_path = out_dir / f"{scene_tag}.json"
+            metadata_path = mesh_path.with_suffix(".json")
             existing_complete = (
                 mesh_path.exists()
                 and all(path.exists() for path in xml_paths.values())
@@ -638,17 +639,22 @@ def build_scenes(
                         "error": str(exc),
                     })
 
-            manifest_path.write_text(
-                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
+            if manifest_path is not None:
+                manifest_path.write_text(
+                    json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
     finally:
         gmsh.finalize()
 
     succeeded = sum(entry["status"] == "success" for entry in manifest)
-    echo(f"\nDone. {succeeded}/{n_scenes} succeeded. Manifest: {manifest_path}")
+    manifest_message = str(manifest_path) if manifest_path is not None else "disabled"
+    echo(
+        f"\nDone. {succeeded}/{n_scenes} succeeded. "
+        f"Manifest: {manifest_message}"
+    )
     return {
-        "manifest_file": str(manifest_path),
+        "manifest_file": str(manifest_path) if manifest_path is not None else None,
         "succeeded": succeeded,
         "attempted": n_scenes,
     }
@@ -698,6 +704,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Show Gmsh meshing output",
     )
+    parser.add_argument(
+        "--no-manifest",
+        action="store_true",
+        help="Do not write a batch manifest; useful for parallel seed shards",
+    )
     args = parser.parse_args()
 
     if args.n_scenes <= 0:
@@ -713,4 +724,5 @@ if __name__ == "__main__":
         tag=args.tag,
         resume=args.resume,
         verbose_gmsh=args.verbose_gmsh,
+        write_manifest=not args.no_manifest,
     )

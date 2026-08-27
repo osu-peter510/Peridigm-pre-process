@@ -21,7 +21,7 @@ VARIANTS = {
 
 
 def organize_dataset(dataset_dir: str | Path) -> dict:
-    """Move meshes and generate both critical-stretch XML variants."""
+    """Move meshes and metadata, then generate both XML variants."""
     dataset_dir = Path(dataset_dir).resolve()
     metadata_files = sorted(dataset_dir.glob("ball_plate_nf_*.json"))
     if not metadata_files:
@@ -37,6 +37,7 @@ def organize_dataset(dataset_dir: str | Path) -> dict:
         geometry_dir = dataset_dir / "geometry" / scene_id
         geometry_dir.mkdir(parents=True, exist_ok=True)
         mesh_path = geometry_dir / f"{tag}.g"
+        organized_metadata_path = geometry_dir / f"{tag}.json"
         flat_mesh_path = dataset_dir / f"{tag}.g"
         if flat_mesh_path.exists():
             if mesh_path.exists():
@@ -91,6 +92,7 @@ def organize_dataset(dataset_dir: str | Path) -> dict:
             json.dumps(data, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        metadata_path.replace(organized_metadata_path)
         metadata_by_seed[seed] = data
 
     manifest_path = dataset_dir / "manifest.json"
@@ -112,7 +114,10 @@ def organize_dataset(dataset_dir: str | Path) -> dict:
                 for name, path in data["xml_files"].items()
                 },
                 "metadata_file": str(
-                    dataset_dir / f"ball_plate_nf_{seed:04d}.json"
+                    dataset_dir
+                    / "geometry"
+                    / f"{seed:04d}"
+                    / f"ball_plate_nf_{seed:04d}.json"
                 ),
                 "parameters": data,
             }

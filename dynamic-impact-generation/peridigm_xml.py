@@ -1266,7 +1266,7 @@ def generate_ball_plate_peridigm_xml(
   </ParameterList>
   <ParameterList name="Contact">
     <Parameter name="Search Radius" type="double" value="{search_radius:.6e}"/>
-    <Parameter name="Search Frequency" type="int" value="100"/>
+    <Parameter name="Search Frequency" type="int" value="1"/>
     <ParameterList name="Models">
       <ParameterList name="Ball Plate Contact">
         <Parameter name="Contact Model" type="string" value="Short Range Force"/>
