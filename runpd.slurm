@@ -1,25 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=Peridigm
-#SBATCH --partition=xeon-gen3
+# Legacy cloth runner name retained as a generic metadata-driven wrapper.
+#SBATCH --job-name=peridigm_case
 #SBATCH --nodes=1
 #SBATCH --ntasks=36
-#SBATCH --time=48:00:00
-#SBATCH --output=output_%j.log
-#SBATCH --error=error_%j.log
+#SBATCH --time=24:00:00
 
 set -euo pipefail
-
-# Prevent "unbound variable" under 'set -u' when peridigm.env appends to these vars
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
-export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
-export PATH="${PATH:-/usr/bin:/bin}"
-export PYTHONPATH="${PYTHONPATH:-}"
-export CPATH="${CPATH:-}"
-export LIBRARY_PATH="${LIBRARY_PATH:-}"
-export CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH:-}"
-
-source /homes/malikas2/peter_zhang/peridigm.env
-cd /homes/malikas2/peter_zhang/remodel_cloth_fall/final-tryout
-
-decomp -p 36 scene.g
-mpirun -np "${SLURM_NTASKS}" Peridigm scene.xml |& tee peridigm.log
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$SCRIPT_DIR/hpc/run_case.slurm" "${1:?Usage: sbatch runpd.slurm CASE_DIR}"

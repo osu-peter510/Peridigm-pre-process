@@ -1,0 +1,134 @@
+version: 1
+scenario: cloth_fall
+
+run:
+  output_root: output
+  count: 1
+  base_seed: 0
+  resume: false
+
+mesh:
+  target_elements: 20000
+  max_elements: 25000
+  tolerance: 0.10
+  initial_size_m: 0.004
+  max_attempts: 10
+  minimum_sicn: 0.05
+  horizon_multiplier: 3.015
+
+geometry:
+  floor_size_m: [0.150, 0.150, 0.002]
+  cloth_size_m: [0.140, 0.140, 0.002]
+  cloth_height_m: 0.080
+  clearance_m: 0.005
+  brick_size_ranges_m:
+    - [0.012, 0.018]
+    - [0.012, 0.018]
+    - [0.026, 0.060]
+  sphere_radius_m: [0.008, 0.012]
+
+materials:
+  rigid:
+    name: Rigid Material
+    model: Elastic
+    parameters:
+      Density: 7800.0
+      Bulk Modulus: 1.409e+11
+      Shear Modulus: 7.894e+10
+  cloth:
+    name: Cloth Material
+    model: Viscoelastic
+    parameters:
+      Density: 300.0
+      Bulk Modulus: 8.33e+5
+      Shear Modulus: 3.85e+5
+      lambda_i: 0.8
+      tau b: 0.001
+
+damage_models: {}
+
+blocks:
+  floor: {name: Floor Block, block_names: block_1, material: rigid}
+  cloth: {name: Cloth Block, block_names: block_2, material: cloth}
+  brick_1: {name: Brick Block 1, block_names: block_3, material: rigid}
+  brick_2: {name: Brick Block 2, block_names: block_4, material: rigid}
+  brick_3: {name: Brick Block 3, block_names: block_5, material: rigid}
+  sphere: {name: Sphere Block, block_names: block_6, material: rigid}
+
+contact:
+  verbose: false
+  mesh_scale: max
+  search_radius_multiplier: 2.5
+  search_frequency: 1
+  models:
+    cloth_rigid:
+      name: Rigid Cloth Contact
+      model: Short Range Force
+      contact_radius_multiplier: 1.20
+      parameters:
+        Spring Constant: 5.0e+6
+        Friction Coefficient: 0.3
+  interactions:
+    - {name: Floor Cloth, model: cloth_rigid, first_block: block_1, second_block: block_2}
+    - {name: Brick 1 Cloth, model: cloth_rigid, first_block: block_3, second_block: block_2}
+    - {name: Brick 2 Cloth, model: cloth_rigid, first_block: block_4, second_block: block_2}
+    - {name: Brick 3 Cloth, model: cloth_rigid, first_block: block_5, second_block: block_2}
+    - {name: Sphere Cloth, model: cloth_rigid, first_block: block_6, second_block: block_2}
+
+boundary_conditions:
+  - {name: Fix Floor X, type: Prescribed Displacement, node_set: nodelist_1, coordinate: x, value: 0.0}
+  - {name: Fix Floor Y, type: Prescribed Displacement, node_set: nodelist_1, coordinate: y, value: 0.0}
+  - {name: Fix Floor Z, type: Prescribed Displacement, node_set: nodelist_1, coordinate: z, value: 0.0}
+  - {name: Fix Brick 1 X, type: Prescribed Displacement, node_set: nodelist_3, coordinate: x, value: 0.0}
+  - {name: Fix Brick 1 Y, type: Prescribed Displacement, node_set: nodelist_3, coordinate: y, value: 0.0}
+  - {name: Fix Brick 1 Z, type: Prescribed Displacement, node_set: nodelist_3, coordinate: z, value: 0.0}
+  - {name: Fix Brick 2 X, type: Prescribed Displacement, node_set: nodelist_4, coordinate: x, value: 0.0}
+  - {name: Fix Brick 2 Y, type: Prescribed Displacement, node_set: nodelist_4, coordinate: y, value: 0.0}
+  - {name: Fix Brick 2 Z, type: Prescribed Displacement, node_set: nodelist_4, coordinate: z, value: 0.0}
+  - {name: Fix Brick 3 X, type: Prescribed Displacement, node_set: nodelist_5, coordinate: x, value: 0.0}
+  - {name: Fix Brick 3 Y, type: Prescribed Displacement, node_set: nodelist_5, coordinate: y, value: 0.0}
+  - {name: Fix Brick 3 Z, type: Prescribed Displacement, node_set: nodelist_5, coordinate: z, value: 0.0}
+  - {name: Fix Sphere X, type: Prescribed Displacement, node_set: nodelist_6, coordinate: x, value: 0.0}
+  - {name: Fix Sphere Y, type: Prescribed Displacement, node_set: nodelist_6, coordinate: y, value: 0.0}
+  - {name: Fix Sphere Z, type: Prescribed Displacement, node_set: nodelist_6, coordinate: z, value: 0.0}
+  - {name: Gravity Cloth, type: Body Force, node_set: nodelist_2, coordinate: z, acceleration: -9.81, material: cloth}
+
+solver:
+  method: Verlet
+  initial_time: 0.0
+  final_time: 3.0
+  time_step:
+    mode: auto
+    safety_factor: 0.70
+    mesh_scale: min
+    round_down_significant: true
+  parameters:
+    Rebalance Frequency: {type: int, value: 100000}
+
+output:
+  file_type: ExodusII
+  interval_s: 4.0e-4
+  variables:
+    - Coordinates
+    - Displacement
+    - Velocity
+    - Force
+    - Force_Density
+    - Contact_Force_Density
+    - Block_Id
+    - Dilatation
+    - Kinetic_Energy
+    - Weighted_Volume
+    - Volume
+    - Global_Kinetic_Energy
+    - Global_Linear_Momentum
+    - Global_Angular_Momentum
+    - Linear_Momentum
+    - Angular_Momentum
+
+runtime:
+  mpi_ranks: 36
+  peridigm_capability: stock
+
+analysis:
+  blocks: [cloth]

@@ -1,301 +1,275 @@
-# Peridigm Preprocessing Pipeline
+# Peridigm Preprocess 1.0
 
-Preprocessing scripts for generating ExodusII meshes (`.g`) and Peridigm simulation configurations (`.xml`) across brittle/soft-body fracture datasets.
+This repository generates reproducible 3-D geometry, bounded-size Exodus meshes,
+and fully configured Peridigm XML files from one YAML command. Release 1.0
+consolidates the useful source logic from the former `multiple-dataset-scene`
+research directory without copying its 71 GB of results, logs, decomposed meshes,
+or machine-local Peridigm builds.
 
-A single unified entry point (`generate.py`) covers all scenarios. Each sub-module can also be run independently.
+The four primary scenes are implemented with the open-source Gmsh backend, so
+Coreform Cubit is not required:
 
----
+| Config | Geometry | Canonical blocks |
+|---|---|---|
+| `configs/kw_fracture.yaml` | Kalthoff-Winkler notched board + projectile | projectile, board |
+| `configs/ball_plate.yaml` | randomized ball impact on a free plate | plate, ball |
+| `configs/mug_fall.yaml` | randomized hollow mug + handle over a floor | floor, mug |
+| `configs/cloth_fall.yaml` | thin volumetric cloth over 3 boxes + sphere | floor, cloth, obstacles |
 
-## Repository Structure
+Chinese quick-start documentation is in [docs/README_zh.md](docs/README_zh.md),
+and the source-to-release inventory is in [docs/MIGRATION.md](docs/MIGRATION.md).
 
-```
-Peridigm-pre-process-claude/
-├── generate.py                    # Unified entry point for all scenarios
-├── README.md
-├── environment.yml
-│
-├── output/                        # All generated scenes (created at runtime)
-│   ├── freefall_vase/
-│   ├── freefall_mug/
-│   ├── bullet_vase/
-│   ├── bullet_mug/
-│   ├── bullet_vase_nf/
-│   ├── bullet_mug_nf/
-│   ├── ball_plate_nf/
-│   ├── kw_fracture/
-│   └── cloth_fall/
-│       └── <scenario>/manifest.json
-│
-├── ball-plate-nf/                 # Open-source Gmsh/meshio ball/plate backend
-│   └── generate_scene.py
-│
-├── kw-board-impact/               # Kalthoff-Winkler fracture benchmark
-│   ├── block_generation.py        # Geometry + mesh builder (importable + standalone)
-│   ├── block_generation.ipynb     # Notebook version (reference)
-│   ├── kw_fracture.xml            # Peridigm config template
-│   ├── kw_fracture.slurm          # SLURM job script
-│   └── kw_board_geometry.png      # Reference geometry diagram
-│
-├── cloth-fall-generation/         # Randomised cloth-fall soft-body dataset
-│   ├── cloth_scene_generator.py   # Main class (ClothFallSceneGenerator)
-│   ├── generate_scenes.py         # Standalone batch generator
-│   ├── examples.py                # Usage examples
-│   ├── scene.xml                  # Template Peridigm config
-│   └── runpd.slurm                # SLURM job script
-│
-└── dynamic-impact-generation/     # Brittle fragmentation dataset
-    ├── geometry_builder.py        # Cubit geometry primitives (vase/mug/bullet/floor)
-    ├── peridigm_xml.py            # Peridigm XML generators (one per scenario)
-    ├── generate_scenes.py         # Standalone batch orchestration script
-    ├── generate_scenes.ipynb      # Original development notebook (reference)
-    ├── pd.slurm                   # SLURM job script
-    └── geometry/                  # Pre-built reference geometry files
-        ├── mug.cub5
-        └── mug.g
-```
-
----
-
-## Dependencies
-
-### Required (manual installation)
-
-**Coreform Cubit 2025.12** — required by the unified entry point and all
-scenarios except the standalone `ball-plate-nf` Gmsh backend.
-Download from [coreform.com](https://coreform.com/products/coreform-cubit/).
-
-Set `CUBIT_PATH` once at the top of `generate.py` (default: `E:\Program Files\Coreform Cubit 2025.12\bin`). When using sub-module scripts standalone, update their local `CUBIT_PATH` variable as well.
-
-### Python environment
+## Install
 
 ```bash
 conda env create -f environment.yml
 conda activate peridigm-preprocess
 ```
 
-For the license-free `ball-plate-nf` backend, create the dedicated Conda
-environment instead:
+The repository-local command works without installing the package. `--help`,
+config validation, and scenario listing do not import Gmsh:
 
 ```bash
-conda env create -f environment-gmsh.yml
-conda activate peridigm-gmsh
-```
-
-This environment uses Gmsh for tetrahedral meshing, meshio for ExodusII output,
-and netCDF4 to add Peridigm-compatible element-block and node-set metadata.
-
----
-
-## Scenarios
-
-| Scenario | Module | Description |
-|---|---|---|
-| `freefall_vase`  | dynamic-impact | Randomised vase dropped from 1.5–2.5 m onto a steel floor |
-| `freefall_mug`   | dynamic-impact | Randomised mug dropped from 1.5–2.5 m onto a steel floor |
-| `bullet_vase`    | dynamic-impact | 400 m/s bullet impacts a vase sitting on a floor |
-| `bullet_mug`     | dynamic-impact | 400 m/s bullet impacts a mug sitting on a floor |
-| `bullet_vase_nf` | dynamic-impact | 400 m/s bullet impacts a floating vase (no floor) |
-| `bullet_mug_nf`  | dynamic-impact | 400 m/s bullet impacts a floating mug (no floor) |
-| `ball_plate_nf`  | Gmsh/meshio | Random steel ball impacts a floating ceramic plate at 20-100 m/s |
-| `ball_plate`     | dynamic-impact | Backward-compatible alias for `ball_plate_nf` |
-| `kw_fracture`    | kw-board-impact | Kalthoff-Winkler notched steel board + cylindrical projectile |
-| `cloth_fall`     | cloth-fall | Randomised cloth falling over 3 bricks + 1 sphere |
-
----
-
-## Quick Start
-
-### Unified entry point (recommended)
-
-Edit `CUBIT_PATH` at the top of `generate.py` once, then run from the repo root:
-
-```bash
-# python generate.py <scenario> <n_scenes> [--base-seed N] [--max-nodes N]
-
-python generate.py freefall_vase   50
-python generate.py freefall_mug    50
-python generate.py bullet_vase     20 --base-seed 100
-python generate.py bullet_mug      20 --base-seed 100
-python generate.py bullet_vase_nf  30 --max-nodes 30000
-python generate.py bullet_mug_nf   30 --max-nodes 30000
-python generate.py ball_plate_nf    50 --max-nodes 30000
-python generate.py kw_fracture      1
-python generate.py cloth_fall     100 --max-nodes 20000
-
 python generate.py --help
+python generate.py list
+python generate.py validate-config configs/mug_fall.yaml
 ```
 
-**Options:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--base-seed N` | `0` | Starting random seed; scene `i` uses seed `base_seed + i` |
-| `--max-nodes N` | `50000` | Element budget; mesh is coarsened until this is met |
-
-Output is written to `output/<scenario>/`. Each run appends a `manifest.json` with file paths and status for every scene attempted.
-
-### Per-module entry points (standalone)
-
-Each sub-module can still be run independently, writing output to its own directory:
+## One-command generation
 
 ```bash
-# Randomized ball/plate impact without a floor
-conda activate peridigm-gmsh
-python ball-plate-nf/generate_scene.py --n-scenes 1000 --seed 0 --output-dir output/ball_plate_nf --max-elements 12000 --resume
-
-# KW board impact
-cd kw-board-impact
-python block_generation.py [--output-dir DIR]
-
-# Cloth fall
-cd cloth-fall-generation
-python generate_scenes.py 100
-python generate_scenes.py 500 --base-seed 42 --output-dir my_cloth_dataset --max-nodes 30000
-
-# Dynamic impact
-cd dynamic-impact-generation
-python generate_scenes.py freefall_vase 50
-python generate_scenes.py bullet_mug 20 --base-seed 100 --output-dir my_dataset
+python generate.py generate configs/ball_plate.yaml
+python generate.py generate configs/kw_fracture.yaml
+python generate.py generate configs/mug_fall.yaml
+python generate.py generate configs/cloth_fall.yaml
 ```
 
----
+Any scalar can be changed without editing YAML:
 
-## Module Descriptions
-
-### `ball-plate-nf/`
-
-Generates a free-floating ceramic plate and an incoming steel ball without a
-floor or Cubit license. Plate diameter (100–150 mm), plate thickness (2–4 mm),
-ball diameter (10–15 mm), impact position/direction, and speed (20–100 m/s) are
-sampled reproducibly from the scene seed. The initial ball position is solved
-from its speed, direction, and Peridigm contact radii. Every scene begins with
-the ball surface strictly outside the contact search radius; the short-range
-contact model activates within `1e-4` to `2e-4` seconds. The generator writes a
-validated
-ExodusII mesh, Peridigm XML, per-scene JSON metadata, and a resumable batch
-manifest. First-order tetrahedra are adaptively coarsened to a hard default cap
-of 12,000 elements per scene. Exodus blocks are named `block_1` (plate) and
-`block_2` (ball), with matching `nodelist_1` and `nodelist_2` node sets. The
-default solver settings are a `2.0e-7` s fixed step, `8.0e-4` s final time, and
-an output frequency of 25 steps. Dataset exports can share each scene mesh under
-`geometry/NNNN/` while keeping the 0.0005 and 0.0015 damage variants under
-`critical-stretch-0p0005/NNNN/` and `critical-stretch-0p0015/NNNN/`.
-
-**Key files:** `generate_scene.py`, `environment-gmsh.yml`
-
-### `kw-board-impact/`
-
-Generates the Kalthoff-Winkler notched steel board impacted by a cylindrical projectile — a standard fracture mechanics benchmark. The board (200×100×9 mm) has two symmetric slotted notches; a steel cylinder (r=25 mm, h=60 mm) impacts at 100 m/s. Boolean subtraction cuts the notches, a webcut splits the board into two halves, and both are tetrahedral-meshed at 5 mm. The geometry is deterministic (no randomisation).
-
-`block_generation.py` exposes `build_kw_scene(out_dir, tag)` for import by `generate.py`, and can also be run standalone. `kw_fracture.xml` is the Peridigm config template; `build_kw_scene` patches the mesh filename and output basename before writing the final XML.
-
-**Key files:** `block_generation.py`, `kw_fracture.xml`
-
-### `cloth-fall-generation/`
-
-Generates randomised soft-body simulations of cloth falling over obstacles, intended as a training dataset for ML models. Each scene has a fixed topology: 1 floor + 1 cloth sheet + 3 random bricks + 1 random sphere. Object sizes and positions are randomised with collision avoidance. Mesh is adaptively coarsened until total node count falls within a configurable budget (default 20 000).
-
-`ClothFallSceneGenerator` in `cloth_scene_generator.py` handles all geometry, meshing, and XML generation. `generate_scenes.py` wraps it for standalone batch use.
-
-**Key files:** `cloth_scene_generator.py`, `generate_scenes.py`
-
-### `dynamic-impact-generation/`
-
-Generates brittle fragmentation simulations for ceramic objects (vase or mug) under two loading types. Geometry parameters (shape, size, wall thickness, handle dimensions) are randomised per seed. Mesh size adapts to stay within a node budget. Peridigm parameters (horizon, dt, final_time, output_frequency) are computed automatically from mesh size via CFL stability conditions:
-
-- `horizon = 3.015 × mesh_size`
-- `dt = mesh_size / c_p × 0.7`
-- `output_frequency` → 2000 fps
-- `contact_radius = 1.1 × mesh_size`, `search_radius = 2.0 × mesh_size`
-
-The code is split across three modules:
-- `geometry_builder.py` — Cubit geometry primitives (vase, mug, bullet, floor); no I/O
-- `peridigm_xml.py` — XML generator functions, one per scenario; no Cubit dependency
-- `generate_scenes.py` — scene builder functions + standalone CLI
-
-**Key files:** `geometry_builder.py`, `peridigm_xml.py`, `generate_scenes.py`
-
----
-
-## Output Format
-
-All scenarios produce the same paired output:
-
-| File | Format | Description |
-|---|---|---|
-| `*.g` | Exodus II | FE mesh with blocks and nodesets; units in **meters** |
-| `*.xml` | Peridigm XML | Simulation config: materials, damage, contact, BCs, solver, output |
-| `manifest.json` | JSON | Scene index: file paths, seeds, and success/error status |
-
-Geometry is created in Cubit in **millimeters (mm)** and scaled to **meters (m)** at export via `cubit.cmd("volume all scale 0.001")`.
-
-**Block / nodeset convention:**
-
-| Block | Nodeset | Contents |
-|---|---|---|
-| `block_1` | `nodelist_1` | Floor or board (fixed BCs) |
-| `block_2` | `nodelist_2` | Main object (vase / mug / cloth) |
-| `block_3` | `nodelist_3` | Bullet (bullet scenarios only) |
-
-`bullet_*_nf` scenes have no floor: `block_1` = vase/mug, `block_2` = bullet.
-
-**Output variables (all scenarios):**
-`Coordinates`, `Displacement`, `Velocity`, `Force`, `Force_Density`, `Contact_Force_Density`,
-`Block_Id`, `Dilatation`, `Kinetic_Energy`, `Weighted_Volume`, `Volume`,
-`Global_Kinetic_Energy`, `Global_Linear_Momentum`, `Global_Angular_Momentum`,
-`Linear_Momentum`, `Angular_Momentum`
-
----
-
-## HPC / SLURM
-
-Each module includes a `.slurm` script for running Peridigm on a cluster. The SLURM scripts call `mpirun -np 36 Peridigm scene.xml`. Adjust the node/task counts to match your cluster configuration.
-
-### Parallel scene generation — all scenarios at once
-
-Run every scenario simultaneously as background processes on the login node. Each writes to its own `output/<scenario>/` folder so there are no conflicts.
-
-**Bash:**
 ```bash
+python generate.py generate configs/mug_fall.yaml \
+  --set run.count=20 \
+  --set mesh.target_elements=40000 \
+  --set mesh.max_elements=42000 \
+  --set mesh.horizon_multiplier=3.2 \
+  --set damage_models.mug_fracture.parameters."Critical Stretch"=0.001
+```
+
+The historical syntax remains available for the four unified scene aliases:
+
+```bash
+python generate.py ball_plate_nf 10 --base-seed 100 --max-elements 12000
+python generate.py freefall_mug 10 --max-elements 12000
+```
+
+Generated inputs are never silently overwritten. Set `run.resume: true` to skip
+complete cases. `--force` can replace generated inputs, but it refuses to touch a
+case whose `results/` directory contains files.
+
+## Output contract
+
+Every case is self-contained and the dataset manifest uses relative paths:
+
+```text
+output/<scenario>/
+├── manifest.json
+└── <scenario>_<seed>/
+    ├── <scenario>_<seed>.g
+    ├── <scenario>_<seed>.xml
+    ├── metadata.json
+    └── results/
+```
+
+`metadata.json` records the source config, sampled geometry, mesh adaptation
+history, node/element counts, mesh quality, measured block mesh sizes, resolved
+horizons, solver values, derived damage parameters, and SHA256 digests.
+
+All geometry and XML values use SI units. Blocks and node sets are named
+`block_N` and `nodelist_N` with stable numeric IDs.
+
+## Mesh count and dynamic horizon
+
+The mesh contract separates the desired count from the hard cap:
+
+```yaml
+mesh:
+  target_elements: 10000
+  max_elements: 11000
+  tolerance: 0.03
+  initial_size_m: 0.00585
+  horizon_multiplier: 3.015
+```
+
+The backend holds the sampled geometry fixed while changing only mesh size.
+Failure to meet `max_elements` is an error; an over-budget mesh is never exported
+as a successful case. `target_elements ± tolerance` is a soft target: if no
+attempt lands inside it, the closest quality-passing candidate below the hard
+cap is retained and metadata records `mesh_control.target_met: false`.
+
+Horizon is not stored as a static config length. After meshing, the pipeline
+measures the median physical cell-edge length separately for every block and
+resolves
+
+```text
+horizon(block) = measured_mesh_size(block) × horizon_multiplier(block)
+```
+
+The measured method, length, multiplier, and final horizon are all written to
+metadata and checked against the XML. A block may override the global multiplier,
+but a normal config cannot accidentally carry a stale absolute horizon from a
+different mesh density.
+
+## Explicit material, damage, solver, and contact configuration
+
+Materials and damage are independent registries. Each block references them by
+ID:
+
+```yaml
+materials:
+  mug:
+    name: Mug Material
+    model: Elastic
+    parameters:
+      Density: 2200.0
+      Bulk Modulus: 1.490e+10
+      Shear Modulus: 8.940e+9
+
+damage_models:
+  mug_fracture:
+    name: Mug Damage
+    model: Critical Stretch
+    parameters:
+      Critical Stretch: 0.0005
+```
+
+Solver time step can be fixed, delegated to Peridigm through a safety factor, or
+calculated after meshing from the smallest selected mesh scale and fastest
+configured P-wave speed:
+
+```yaml
+solver:
+  method: Verlet
+  final_time: 0.03
+  time_step:
+    mode: auto
+    safety_factor: 0.7
+    mesh_scale: min
+```
+
+Contact and search radii are also expressed as multipliers of a measured mesh
+scale, with an explicit search frequency and model parameters.
+
+### Progressive Bond Energy
+
+`configs/mug_fall_progressive.yaml` demonstrates the migrated mesh-density logic.
+`Characteristic Length` is bound to the final mug horizon, and fracture energy is
+recomputed whenever the mesh or horizon multiplier changes:
+
+```text
+sf = s0 × failure_stretch_ratio
+Gc = 0.5 × Et × s0 × sf × characteristic_length
+```
+
+Progressive Bond Energy requires a compatible custom Peridigm build; generating
+valid XML does not add that model (or any separately configured custom material)
+to stock Peridigm. The example emits the model-required `Tensile Modulus` and
+uses it in the derived energy formula.
+
+## Validation and result quality
+
+Static validation reopens Exodus and XML, verifies hashes, topology, counts,
+relative mesh references, solver values, damage parameters, and every dynamic
+horizon:
+
+```bash
+python generate.py validate output/mug_fall
+python generate.py validate output/mug_fall/mug_fall_0000
+```
+
+After Peridigm runs, the generic first quality gate checks exact result files,
+time-axis agreement and final time, NaN/Inf, damage bounds, and damage
+irreversibility. It also requires successful `run_metadata.json` provenance
+bound to the current mesh/XML hashes, ranks, and decomposition sidecar. It
+writes `quality_report.json`:
+
+```bash
+python generate.py quality output/mug_fall/mug_fall_0000
+```
+
+For physics-oriented impact metrics, `analyze` merges serial or complete
+Nemesis output, identifies elements by global element ID, rejects duplicate
+global-element ownership across shards, and maps nodal fields through block
+connectivity:
+
+```bash
+python generate.py analyze output/mug_fall/mug_fall_0000
+python generate.py analyze output/ball_plate/ball_plate_0000 \
+  --block ball --damage-block plate
+```
+
+`analysis.blocks`/`--block` selects the single moving body used for velocity,
+force/impulse, momentum, rebound, and restitution. Independently,
+`analysis.damage_blocks`/`--damage-block` selects the damaged target; a distinct
+target is reported under `damage_analysis`. This prevents target and projectile
+forces from cancelling in one reduction. Damage fraction thresholds come from
+`analysis.damage_thresholds` when configured; repeated `--damage-threshold`
+arguments override them for one analysis.
+
+With valid element `Volume`, `impact_report.json` contains volume/mass-weighted
+histories, Force_Density integration, impulse and momentum closure, plus
+volume-weighted Damage means/fractions. If physical `Volume` is unavailable,
+dimensional volume, mass, Force_Density force, impulse, and momentum fields are
+left unavailable; only explicitly named count-weighted kinematics/Damage
+statistics are emitted (a complete direct `Force` field remains usable). Missing
+or partial fields are explicit warnings. Ambiguous multi-block impact reductions
+are suppressed unless the config explicitly opts in.
+
+`compare_convergence_reports()` in `result_analysis.py` provides a
+machine-readable absolute/relative gate for paired-dt or mesh comparisons.
+Energy closure and broken-bond fragment connectivity remain scenario-specific;
+a scalar Damage field is not treated as an exact fragment graph.
+
+## Slurm
+
+The scripts under `hpc/` read case metadata and manifests rather than hard-coded
+home directories or filenames.
+
+```bash
+# Generate on a compute node
 mkdir -p logs
-SCENES=50
+sbatch hpc/generate.slurm configs/mug_fall.yaml run.count=20
 
-for scenario in freefall_vase freefall_mug bullet_vase bullet_mug bullet_vase_nf bullet_mug_nf ball_plate_nf kw_fracture cloth_fall; do
-    python generate.py $scenario $SCENES --max-nodes 50000 > logs/${scenario}.log 2>&1 &
-done
+# Preview, then submit a Peridigm array
+python hpc/submit_dataset.py output/mug_fall/manifest.json \
+  --partition=preempt --concurrency=5
 
-wait
-echo "All done."
+PERIDIGM_BIN=/path/to/Peridigm \
+python hpc/submit_dataset.py output/mug_fall/manifest.json \
+  --partition=preempt --concurrency=5 --submit
 ```
 
-**PowerShell (Windows):**
-```powershell
-New-Item -ItemType Directory -Force logs | Out-Null
-$scenarios = @("freefall_vase","freefall_mug","bullet_vase","bullet_mug","bullet_vase_nf","bullet_mug_nf","ball_plate_nf","kw_fracture","cloth_fall")
-$jobs = $scenarios | ForEach-Object {
-    Start-Process python -ArgumentList "generate.py $_ 50 --max-nodes 50000" `
-        -RedirectStandardOutput "logs\$_.log" -NoNewWindow -PassThru
-}
-$jobs | Wait-Process
-Write-Host "All done."
+The submitter infers ranks from every case's metadata and rejects mismatches.
+The runner binds each decomposition to the base-mesh SHA256 in a sidecar,
+rejects partial/untracked/stale shards, records actual run ranks and exit status,
+binds the launch to both mesh and XML hashes, and refuses to overwrite any
+nonempty result directory (including hidden entries). The completed run sidecar
+also records the exact Exodus paths and sizes consumed by the quality gate. See
+[hpc/README.md](hpc/README.md) for
+environment variables and the `afterany` result-validation gate.
+
+## Repository layout
+
+```text
+configs/                       editable release configs
+src/peridigm_preprocess/       unified package, XML resolver, validation
+src/peridigm_preprocess/scenes all-Gmsh primary scene backends
+hpc/                           portable Slurm generation/run/quality workflow
+tests/                         config/XML/CLI/regression tests
+ball-plate-nf/                 retained legacy standalone backend
+dynamic-impact-generation/     retained Cubit research backends
+kw-board-impact/               retained KW reference material
+cloth-fall-generation/         retained Cubit reference backend
 ```
 
-### Submitting all generated scenes to SLURM
-
-After generation, loop over the output directory to decompose and submit every scene:
-
-```bash
-# All scenarios
-for xml in output/*/*.xml; do
-    decomp -p 36 ${xml%.xml}.g
-    sbatch --job-name=$(basename $xml .xml) pd.slurm $xml
-done
-```
-
-```bash
-# Single scenario
-for xml in output/freefall_vase/*.xml; do
-    decomp -p 36 ${xml%.xml}.g
-    sbatch --job-name=$(basename $xml .xml) pd.slurm $xml
-done
-```
+The legacy directories remain for provenance and backwards comparison. The
+release CLI does not depend on their hard-coded Cubit paths or static XML.

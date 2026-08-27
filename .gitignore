@@ -1,5 +1,26 @@
 # Generated output (large mesh/sim files)
 output/
+runs/
+results/
+logs/
+analysis/
+status/
+submission.json
+*.lock
+
+# Exodus/Nemesis simulation artifacts and decomposed mesh shards
+*.e
+*.e.*
+*.g.*
+*.nem
+*.pex
+
+# Local Peridigm builds and large visualization products
+peridigm_install*/
+*.a
+*.so
+*.mp4
+*.avi
 
 # Cubit working files
 *.cub5
@@ -10,6 +31,8 @@ output/
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
 .venv/
 venv/
 

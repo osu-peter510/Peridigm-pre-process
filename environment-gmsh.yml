@@ -1,10 +1,11 @@
-name: peridigm-gmsh
+name: peridigm-preprocess-gmsh
 channels:
   - conda-forge
 dependencies:
-  - python=3.13
+  - python=3.10
   - numpy
   - gmsh
   - python-gmsh
   - meshio
   - netcdf4
+  - pyyaml

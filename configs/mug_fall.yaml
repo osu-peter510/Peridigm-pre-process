@@ -1,0 +1,132 @@
+version: 1
+scenario: mug_fall
+
+run:
+  output_root: output
+  count: 1
+  base_seed: 0
+  resume: false
+
+mesh:
+  target_elements: 10000
+  max_elements: 11000
+  tolerance: 0.03
+  initial_size_m: 0.00585
+  max_attempts: 10
+  minimum_sicn: 0.10
+  horizon_multiplier: 3.015
+
+geometry:
+  mug:
+    body_radius_m: [0.030, 0.050]
+    body_height_m: [0.070, 0.115]
+    wall_thickness_m: [0.0025, 0.0050]
+    handle_width_m: [0.007, 0.014]
+    handle_height_m: [0.035, 0.060]
+    handle_protrusion_m: [0.018, 0.035]
+  floor:
+    side_length_m: 0.200
+    thickness_m: 0.002
+    elements_per_side: 44
+  clearance_m: 0.075
+  initial_velocity_m_s: [0.0, 0.0, -5.0]
+
+materials:
+  floor:
+    name: Floor Material
+    model: Elastic
+    parameters:
+      Density: 7700.0
+      Bulk Modulus: 1.600e+11
+      Shear Modulus: 7.830e+10
+  mug:
+    name: Mug Material
+    model: Elastic
+    parameters:
+      Density: 2200.0
+      Bulk Modulus: 1.490e+10
+      Shear Modulus: 8.940e+9
+
+damage_models:
+  mug_fracture:
+    name: Mug Damage
+    model: Critical Stretch
+    parameters:
+      Critical Stretch: 0.0005
+
+blocks:
+  floor:
+    name: Floor Block
+    block_names: block_1
+    material: floor
+  mug:
+    name: Mug Block
+    block_names: block_2
+    material: mug
+    damage_model: mug_fracture
+
+contact:
+  verbose: false
+  mesh_scale: max
+  search_radius_multiplier: 2.0
+  search_frequency: 1
+  models:
+    impact:
+      name: Mug Floor Contact
+      model: Short Range Force
+      contact_radius_multiplier: 1.10
+      parameters:
+        Spring Constant: 1.0e+11
+        Friction Coefficient: 0.3
+  interactions:
+    - name: Mug Floor Interaction
+      model: impact
+      first_block: block_2
+      second_block: block_1
+
+boundary_conditions:
+  - {name: Fix Floor X, type: Prescribed Displacement, node_set: nodelist_1, coordinate: x, value: 0.0}
+  - {name: Fix Floor Y, type: Prescribed Displacement, node_set: nodelist_1, coordinate: y, value: 0.0}
+  - {name: Fix Floor Z, type: Prescribed Displacement, node_set: nodelist_1, coordinate: z, value: 0.0}
+  - {name: Mug Initial Velocity X, type: Initial Velocity, node_set: nodelist_2, coordinate: x, value_from_metadata: initial_velocity_m_s.0}
+  - {name: Mug Initial Velocity Y, type: Initial Velocity, node_set: nodelist_2, coordinate: y, value_from_metadata: initial_velocity_m_s.1}
+  - {name: Mug Initial Velocity Z, type: Initial Velocity, node_set: nodelist_2, coordinate: z, value_from_metadata: initial_velocity_m_s.2}
+  - {name: Gravity Mug, type: Body Force, node_set: nodelist_2, coordinate: z, acceleration: -9.81, material: mug}
+
+solver:
+  method: Verlet
+  initial_time: 0.0
+  final_time: 0.030
+  time_step:
+    mode: fixed
+    value: 2.0e-7
+
+output:
+  file_type: ExodusII
+  interval_s: 2.0e-4
+  variables:
+    - Coordinates
+    - Displacement
+    - Velocity
+    - Force
+    - Force_Density
+    - Contact_Force_Density
+    - Block_Id
+    - Dilatation
+    - Kinetic_Energy
+    - Weighted_Volume
+    - Volume
+    - Damage
+    - Global_Kinetic_Energy
+    - Global_Linear_Momentum
+    - Global_Angular_Momentum
+    - Linear_Momentum
+    - Angular_Momentum
+
+runtime:
+  mpi_ranks: 36
+  peridigm_capability: stock
+
+analysis:
+  blocks: [mug]
+  damage_blocks: [mug]

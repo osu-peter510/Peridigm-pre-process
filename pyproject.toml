@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peridigm-preprocess"
+version = "1.0.0"
+description = "Reproducible Gmsh geometry and mesh-resolved Peridigm XML generation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "gmsh>=4.11",
+  "meshio>=5.3",
+  "netCDF4>=1.6",
+  "numpy>=1.24",
+  "PyYAML>=6.0",
+]
+
+[project.scripts]
+peridigm-preprocess = "peridigm_preprocess.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+peridigm_preprocess = ["py.typed"]
+
+[tool.setuptools.data-files]
+"share/peridigm-preprocess/configs" = [
+  "configs/ball_plate.yaml",
+  "configs/cloth_fall.yaml",
+  "configs/kw_fracture.yaml",
+  "configs/mug_fall.yaml",
+  "configs/mug_fall_progressive.yaml",
+]

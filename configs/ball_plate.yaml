@@ -1,0 +1,138 @@
+version: 1
+scenario: ball_plate
+
+run:
+  output_root: output
+  count: 1
+  base_seed: 0
+  resume: false
+
+mesh:
+  target_elements: 10000
+  max_elements: 12000
+  tolerance: 0.08
+  initial_size_m: 0.002
+  max_attempts: 10
+  minimum_sicn: 0.05
+  # Every block horizon is measured_mesh_size * horizon_multiplier.
+  horizon_multiplier: 3.015
+
+geometry:
+  plate_diameter_m: [0.100, 0.150]
+  plate_thickness_m: [0.002, 0.004]
+  ball_diameter_m: [0.010, 0.015]
+  ball_speed_m_s: [20.0, 100.0]
+  impact_angle_deg: [0.0, 30.0]
+  impact_azimuth_deg: [0.0, 360.0]
+  contact_position_fraction: 0.60
+  contact_activation_time_s: [0.00010, 0.00020]
+  contact_radius_multiplier: 1.10
+  search_radius_multiplier: 1.50
+
+materials:
+  plate:
+    name: Plate Material
+    model: Elastic
+    parameters:
+      Density: 2200.0
+      Bulk Modulus: 1.490e+10
+      Shear Modulus: 8.940e+9
+  ball:
+    name: Ball Material
+    model: Elastic
+    parameters:
+      Density: 7700.0
+      Bulk Modulus: 1.600e+11
+      Shear Modulus: 7.830e+10
+
+damage_models:
+  plate_fracture:
+    name: Plate Damage
+    model: Critical Stretch
+    parameters:
+      Critical Stretch: 0.0005
+
+blocks:
+  plate:
+    name: Plate Block
+    block_names: block_1
+    material: plate
+    damage_model: plate_fracture
+  ball:
+    name: Ball Block
+    block_names: block_2
+    material: ball
+
+contact:
+  verbose: false
+  mesh_scale: max
+  search_radius_multiplier: 1.50
+  search_frequency: 1
+  models:
+    impact:
+      name: Ball Plate Contact
+      model: Short Range Force
+      contact_radius_multiplier: 1.10
+      parameters:
+        Spring Constant: 1.0e+12
+        Friction Coefficient: 0.0
+  interactions:
+    - name: Ball Plate Interaction
+      model: impact
+      first_block: block_2
+      second_block: block_1
+
+boundary_conditions:
+  - name: Ball Initial Velocity X
+    type: Initial Velocity
+    node_set: nodelist_2
+    coordinate: x
+    value_from_metadata: initial_velocity_m_s.0
+  - name: Ball Initial Velocity Y
+    type: Initial Velocity
+    node_set: nodelist_2
+    coordinate: y
+    value_from_metadata: initial_velocity_m_s.1
+  - name: Ball Initial Velocity Z
+    type: Initial Velocity
+    node_set: nodelist_2
+    coordinate: z
+    value_from_metadata: initial_velocity_m_s.2
+
+solver:
+  method: Verlet
+  initial_time: 0.0
+  final_time: 0.0008
+  time_step:
+    mode: fixed
+    value: 2.0e-7
+
+output:
+  file_type: ExodusII
+  frequency: 25
+  variables:
+    - Coordinates
+    - Displacement
+    - Velocity
+    - Force
+    - Force_Density
+    - Contact_Force_Density
+    - Block_Id
+    - Dilatation
+    - Kinetic_Energy
+    - Weighted_Volume
+    - Volume
+    - Damage
+    - Global_Kinetic_Energy
+    - Global_Linear_Momentum
+    - Global_Angular_Momentum
+    - Linear_Momentum
+    - Angular_Momentum
+
+runtime:
+  mpi_ranks: 36
+  peridigm_capability: stock
+
+analysis:
+  blocks: [ball]
+  damage_blocks: [plate]

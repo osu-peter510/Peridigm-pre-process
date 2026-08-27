@@ -1,0 +1,129 @@
+version: 1
+scenario: kw_fracture
+
+run:
+  output_root: output
+  count: 1
+  base_seed: 0
+  resume: false
+
+mesh:
+  target_elements: 8000
+  max_elements: 10000
+  tolerance: 0.10
+  initial_size_m: 0.005
+  max_attempts: 10
+  minimum_sicn: 0.10
+  horizon_multiplier: 3.015
+
+geometry:
+  board_length_m: 0.200
+  board_height_m: 0.100
+  board_thickness_m: 0.009
+  notch_gap_m: 0.0515
+  notch_width_m: 0.0015
+  notch_depth_m: 0.050
+  projectile_radius_m: 0.025
+  projectile_length_m: 0.060
+  projectile_gap_m: 0.020
+  projectile_speed_m_s: 100.0
+
+materials:
+  projectile:
+    name: Projectile Material
+    model: Elastic
+    parameters:
+      Density: 7700.0
+      Bulk Modulus: 1.600e+11
+      Shear Modulus: 7.830e+10
+  board:
+    name: Board Material
+    model: Elastic
+    parameters:
+      Density: 7700.0
+      Bulk Modulus: 1.600e+11
+      Shear Modulus: 7.830e+10
+
+damage_models:
+  board_fracture:
+    name: Board Damage
+    model: Critical Stretch
+    parameters:
+      Critical Stretch: 0.0030
+
+blocks:
+  projectile:
+    name: Projectile Block
+    block_names: block_1
+    material: projectile
+  board:
+    name: Board Block
+    block_names: block_2
+    material: board
+    damage_model: board_fracture
+
+contact:
+  verbose: false
+  mesh_scale: max
+  search_radius_multiplier: 2.0
+  search_frequency: 1
+  models:
+    impact:
+      name: Projectile Board Contact
+      model: Short Range Force
+      contact_radius_multiplier: 1.20
+      parameters:
+        Spring Constant: 1.0e+12
+        Friction Coefficient: 0.3
+  interactions:
+    - name: Projectile Board Interaction
+      model: impact
+      first_block: block_1
+      second_block: block_2
+
+boundary_conditions:
+  - name: Projectile Initial Velocity Y
+    type: Initial Velocity
+    node_set: nodelist_1
+    coordinate: y
+    value_from_metadata: initial_velocity_m_s.1
+
+solver:
+  method: Verlet
+  initial_time: 0.0
+  final_time: 0.001
+  time_step:
+    mode: auto
+    safety_factor: 0.70
+    mesh_scale: min
+    round_down_significant: true
+
+output:
+  file_type: ExodusII
+  interval_s: 1.0e-5
+  variables:
+    - Coordinates
+    - Displacement
+    - Velocity
+    - Force
+    - Force_Density
+    - Contact_Force_Density
+    - Block_Id
+    - Dilatation
+    - Kinetic_Energy
+    - Weighted_Volume
+    - Volume
+    - Damage
+    - Global_Kinetic_Energy
+    - Global_Linear_Momentum
+    - Global_Angular_Momentum
+    - Linear_Momentum
+    - Angular_Momentum
+
+runtime:
+  mpi_ranks: 36
+  peridigm_capability: stock
+
+analysis:
+  blocks: [projectile]
+  damage_blocks: [board]
